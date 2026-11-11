@@ -1,4 +1,4 @@
-// "Thư viện b-roll của tôi": the user's own photos / clips, kept once in ~/.ai-video-studio/broll_lib and reused by every
+// "Thư viện b-roll của tôi": the user's own photos / clips, kept once in ~/.ai-affiliate-studio/broll_lib and reused by every
 // project. Each item gets tags (from the file name, typed by the user, or written by Claude looking at the picture); auto b-roll
 // (scripts/auto_broll.mjs, source "lib") picks items whose tags match what is being said and copies them into the project.
 //   node scripts/broll_lib.mjs add <file…> [--tags "quán, cà phê"] · list · rm <id> · tags <id> "a, b" · tag [--claude] [--all]
@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnClaude } from './platform.mjs';
 
-export const LIB = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio'), 'broll_lib');
+export const LIB = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio'), 'broll_lib');
 const IDX = path.join(LIB, 'index.json');
 const fold = s => String(s).toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/[̀-ͯ]/g, '');
 const IMG = /\.(jpe?g|png|webp|heic)$/i, VID = /\.(mp4|mov|m4v|webm|mkv)$/i;

@@ -40,9 +40,9 @@
     el.id = 'author';
     el.innerHTML = `<div class="card" role="dialog" aria-label="Giới thiệu tác giả">
       <div class="mk"><i></i><i></i><i></i></div>
-      <h2>AI Video Studio</h2>
-      <p class="by">Phần mềm của tác giả <b>${AUTHOR}</b></p>
-      <p class="tag">Edit video bằng AI chạy ngay trên máy bạn: template tự bám lời thoại, tạo style từ video bất kỳ, tự lái, agent Telegram.</p>
+      <h2>AI Affiliate Studio</h2>
+      <p class="by">Dựa trên AI Video Studio của tác giả <b>${AUTHOR}</b></p>
+      <p class="tag">Làm video affiliate gắn giỏ hàng TikTok Shop, Facebook bằng AI ngay trên máy bạn: từ sản phẩm ra video, tự lái, nhiều hook, bộ đăng, học từ đơn hàng.</p>
       <a class="gift" href="${COURSE}" target="_blank" rel="noopener"><i class="ti ti-gift"></i> Tặng khoá học AI miễn phí</a>
       <div class="row"><a href="${SITE}" target="_blank" rel="noopener"><i class="ti ti-world"></i> taki.vn</a><button data-close><i class="ti ti-player-play"></i> Bắt đầu dùng</button></div>
       ${auto ? '<div class="bar"><i></i></div>' : ''}</div>`;

@@ -1,12 +1,12 @@
 #!/bin/bash
-# AI Video Studio — cài đặt một lệnh (macOS; Linux chạy được phần lõi, không có app Mac).
+# AI Affiliate Studio — cài đặt một lệnh (macOS; Linux chạy được phần lõi, không có app Mac).
 #   bash install.sh            cài thư viện, gắn làm skill Claude Code, dựng dự án clip mẫu, tạo app Mac
 #   bash install.sh --no-app   không tạo app Mac
 #   bash install.sh --no-skill không gắn vào ~/.claude/skills
 set -e
 REPO="$(cd "$(dirname "$0")" && pwd)"
-SKILL_DIR="${AVS_SKILL_DIR:-$HOME/.claude/skills/ai-video-studio}"
-HOME_DIR="${AVS_HOME:-$HOME/.ai-video-studio}"
+SKILL_DIR="${AVS_SKILL_DIR:-$HOME/.claude/skills/ai-affiliate-studio}"
+HOME_DIR="${AVS_HOME:-$HOME/.ai-affiliate-studio}"
 SAMPLE="$HOME_DIR/footage/clip-mau"
 APP=1; LINK=1
 for a in "$@"; do case "$a" in --no-app) APP=0;; --no-skill) LINK=0;; esac; done
@@ -54,19 +54,19 @@ node "$REPO/scripts/style_lab.mjs" sync $([ "$LINK" = 1 ] || echo --no-skills) >
 
 # 6. App Mac
 if [ "$APP" = 1 ] && [ "$(uname)" = Darwin ]; then
-  say "Tạo app ~/Applications/AI Video Studio.app"
+  say "Tạo app ~/Applications/AI Affiliate Studio.app"
   bash "$REPO/scripts/make_app.sh" --skill "$REPO" || say "Không tạo được app (bỏ qua, vẫn mở bằng lệnh được)"
 fi
 
 cat <<EOF
 
-✅ Cài xong AI Video Studio.
+✅ Cài xong AI Affiliate Studio.
 
   Mở Studio với clip mẫu:   bash "$REPO/studio.sh"
   Mở với video của bạn:     bash "$REPO/studio.sh" --new /đường/dẫn/video.mp4
-$([ -d "$HOME/Applications/AI Video Studio.app" ] && echo '  Hoặc bấm app "AI Video Studio" trong Launchpad / ~/Applications.')
+$([ -d "$HOME/Applications/AI Affiliate Studio.app" ] && echo '  Hoặc bấm app "AI Affiliate Studio" trong Launchpad / ~/Applications.')
 
-  Trình duyệt sẽ mở http://localhost:5186
+  Trình duyệt sẽ mở http://localhost:5187
 
   Tác giả: Nguyễn Tất Kiểm · Tặng khoá học AI miễn phí: https://nguyentatkiem.com.vn/aiplusntk/
 EOF

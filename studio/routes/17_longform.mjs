@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 export default ctx => {
-  const HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+  const HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
   const ROOT = path.join(HOME, 'longform');
   const HL = path.join(ctx.SKILL, 'scripts/highlights.mjs'), TOPIC = path.join(ctx.SKILL, 'scripts/topic_video.mjs');
   const slug = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'video';

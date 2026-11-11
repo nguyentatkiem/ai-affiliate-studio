@@ -1,10 +1,10 @@
 // "Chọn video từ máy" for dialogs that otherwise need a typed path (Video mới…): the browser uploads the chosen file,
-// it is kept in ~/.ai-video-studio/uploads/ and its server-side path goes back into the dialog. Works the same on macOS/Windows.
+// it is kept in ~/.ai-affiliate-studio/uploads/ and its server-side path goes back into the dialog. Works the same on macOS/Windows.
 //   POST /api/pick/upload?name=clip.mp4   (raw body) → { path, size }
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 
 export default ctx => {
-  const DIR = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio'), 'uploads');
+  const DIR = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio'), 'uploads');
   return async (req, res, p, u) => {
     if (p !== '/api/pick/upload' || req.method !== 'POST') return false;
     fs.mkdirSync(DIR, { recursive: true });

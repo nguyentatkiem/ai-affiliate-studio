@@ -1,5 +1,5 @@
 // Hàng đợi nền + Thư mục tự động (references/autopilot.md).
-// Store: ~/.ai-video-studio/queue.json (AVS_HOME overrides); settings: ~/.ai-video-studio/autopilot.json; lock: queue.lock.
+// Store: ~/.ai-affiliate-studio/queue.json (AVS_HOME overrides); settings: ~/.ai-affiliate-studio/autopilot.json; lock: queue.lock.
 // One runner at a time (Studio server lane, `queue.mjs run`, or the LaunchAgent) holds queue.lock; the others stay passive and
 // take over when the holder exits. The runner executes at most ONE item at a time, retries a failed item once, scans the watch
 // folders and calls `node scripts/publish.mjs run-due` every 60 s when that script exists.
@@ -7,7 +7,7 @@
 //   node scripts/queue.mjs add <kind> <input> [--profile id] [--out dir] [--opts '{"n":6}']   kinds: autopilot|highlights|topic|variants|publish
 //   node scripts/queue.mjs list | cancel <id> | retry <id> | remove <id> | up <id> | down <id> | clear-done
 //   node scripts/queue.mjs run [--daemon]        (run until the queue is empty; --daemon: keep running + watch folders)
-//   node scripts/queue.mjs agent install|uninstall|status      (LaunchAgent com.aivideostudio.watch)
+//   node scripts/queue.mjs agent install|uninstall|status      (LaunchAgent com.aiaffiliatestudio.watch)
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,12 +17,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { notify } from './notify.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
 const QFILE = path.join(AVS_HOME, 'queue.json'), SFILE = path.join(AVS_HOME, 'autopilot.json'), LOCK = path.join(AVS_HOME, 'queue.lock');
 export const VIDEO_EXT = /\.(mp4|mov|m4v|mkv)$/i;
 const MOVIES = path.join(os.homedir(), 'Movies', 'AI Video Studio');
 export const DEFAULT_FOLDER = { in: path.join(MOVIES, 'Thả video vào đây'), done: path.join(MOVIES, 'Đã xong'), processed: path.join(MOVIES, 'Đã xử lý'), profile: '' };
-const LA_LABEL = 'com.aivideostudio.watch';
+const LA_LABEL = 'com.aiaffiliatestudio.watch';
 const LA_DIR = process.env.AVS_LA_DIR || path.join(os.homedir(), 'Library/LaunchAgents');
 
 const rd = (f, d) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
@@ -53,6 +53,8 @@ export const KINDS = {
   topic: { name: 'Chủ đề → video', script: 'topic_video.mjs' },
   variants: { name: 'Biến thể A/B', script: 'variants.mjs' },
   publish: { name: 'Đăng / lên lịch', script: 'publish.mjs' },
+  aff: { name: 'Tự lái affiliate', script: 'autopilot_aff.mjs' },
+  afflive: { name: 'Livestream → clip affiliate', script: 'aff_live.mjs' },
 };
 export function addItem({ kind, input, opts = {}, source = 'ui' }) {
   if (!KINDS[kind]) throw new Error(`Loại việc lạ: ${kind}`);
@@ -75,11 +77,13 @@ export function clearDone() { return mutate(q => { const n = q.items.length; q.i
 
 function argsFor(it) {
   const o = it.opts || {}, k = it.kind, A = [];
-  if (k === 'autopilot') { A.push(it.input); if (o.profile) A.push('--profile', o.profile); if (o.out) A.push('--out', o.out); if (o.project) A.push('--project', o.project); }
+  if (k === 'autopilot') { A.push(it.input); if (o.profile) A.push('--profile', o.profile); if (o.out) A.push('--out', o.out); if (o.project) A.push('--project', o.project); if (o.product) A.push('--product', o.product); if (o.platform) A.push('--platform', o.platform); }
   else if (k === 'highlights') { A.push(it.input, '--out', o.out || path.join(AVS_HOME, 'autopilot/highlights', `${slug(path.basename(it.input, path.extname(it.input)))}-${it.id}`)); for (const f of ['n', 'min', 'max', 'orient']) if (o[f] != null) A.push('--' + f, String(o[f])); }
   else if (k === 'topic') { A.push(it.input, '--out', o.out || path.join(AVS_HOME, 'autopilot/topics', it.id)); /* fresh folder per item: topic_video nests into an existing one */ for (const f of ['dur', 'voice', 'orient']) if (o[f] != null) A.push('--' + f, String(o[f])); }
   else if (k === 'variants') { A.push(it.input, '--n', String(o.n || 3)); if (o.kind) A.push('--kind', o.kind); }
   else if (k === 'publish') { A.push(o.action || 'youtube-upload', it.input); if (o.meta) A.push('--meta', o.meta); if (o.schedule) A.push('--schedule', o.schedule); }
+  else if (k === 'afflive') { A.push(it.input); for (const f of ['product', 'n', 'platform', 'out']) if (o[f] != null && o[f] !== '') A.push('--' + f, String(o[f])); }
+  else if (k === 'aff') { A.push(it.input); for (const f of ['profile', 'angles', 'hooks', 'platforms', 'dur', 'angle', 'voice', 'out']) if (o[f] != null && o[f] !== '') A.push('--' + f, String(o[f])); if (o.schedule) A.push('--schedule'); if (o.restart) A.push('--restart'); }
   if (Array.isArray(o.args)) A.push(...o.args.map(String));
   return A;
 }
@@ -165,10 +169,10 @@ export class Runner {
       this.child = null; this.item = null; this.idleSince = Date.now();
       const errLine = (log.match(/^LỖI: .*$/gm) || []).pop()?.slice(5) || log.trim().split('\n').slice(-2).join(' | ').slice(-300);
       const outputs = result?.outputs || (it0.opts?.out ? [it0.opts.out] : []);
-      if (code === 0) { upd({ state: 'done', progress: 1, step: 'Xong', finished: new Date().toISOString(), outputs, result, log: log.slice(-1500) }); if (it0.kind !== 'autopilot') notify(`${spec.name} xong`, it0.title); }
+      if (code === 0) { upd({ state: 'done', progress: 1, step: 'Xong', finished: new Date().toISOString(), outputs, result, log: log.slice(-1500) }); if (!['autopilot', 'aff', 'afflive'].includes(it0.kind)) notify(`${spec.name} xong`, it0.title); }
       else if (this.cancelled) upd({ state: 'cancelled', step: 'Đã huỷ', finished: new Date().toISOString(), log: log.slice(-1500) });
       else if (attempt < 2 && !/chưa được cài|Chỉ nhận tệp|Không thấy /.test(errLine)) upd({ state: 'queued', step: `Lỗi, sẽ thử lại: ${errLine}`.slice(0, 300), error: errLine, log: log.slice(-1500) });
-      else { upd({ state: 'error', step: 'Lỗi', error: errLine, finished: new Date().toISOString(), log: log.slice(-1500) }); if (it0.kind !== 'autopilot') notify(`${spec.name} lỗi`, `${it0.title}: ${errLine}`); }
+      else { upd({ state: 'error', step: 'Lỗi', error: errLine, finished: new Date().toISOString(), log: log.slice(-1500) }); if (!['autopilot', 'aff', 'afflive'].includes(it0.kind)) notify(`${spec.name} lỗi`, `${it0.title}: ${errLine}`); }
       this.log(`queue: ${it0.kind} ${it0.input} → ${code === 0 ? 'xong' : this.cancelled ? 'huỷ' : 'lỗi ' + errLine}`);
     });
   }
@@ -203,7 +207,7 @@ export class Runner {
 const plistPath = () => path.join(LA_DIR, `${LA_LABEL}.plist`);
 const xml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // Windows: a Task Scheduler task at logon running a hidden wscript launcher (no admin rights needed).
-const WIN_TASK = 'AIVideoStudio-watch', winVbs = () => path.join(AVS_HOME, 'agent.vbs');
+const WIN_TASK = 'AIAffiliateStudio-watch', winVbs = () => path.join(AVS_HOME, 'agent.vbs');
 export function agentStatus() { return process.platform === 'win32' ? { installed: fs.existsSync(winVbs()), task: WIN_TASK } : { installed: fs.existsSync(plistPath()), plist: plistPath() }; }
 export function agentInstall() {
   if (process.platform === 'win32') {
@@ -215,7 +219,7 @@ export function agentInstall() {
     return new Promise(ok => execFile('schtasks', ['/create', '/f', '/tn', WIN_TASK, '/sc', 'onlogon', '/rl', 'limited', '/tr', `wscript.exe "${winVbs()}"`], e =>
       execFile('schtasks', ['/run', '/tn', WIN_TASK], () => ok({ ok: !e, error: e?.message, task: WIN_TASK }))));
   }
-  const node = process.execPath, logf = path.join(os.homedir(), 'Library/Logs/AIVideoStudio-watch.log');
+  const node = process.execPath, logf = path.join(os.homedir(), 'Library/Logs/AIAffiliateStudio-watch.log');
   const PATH = ['/opt/homebrew/bin', '/usr/local/bin', path.join(os.homedir(), '.local/bin'), path.dirname(node), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(':');
   const env = { PATH, ...(process.env.AVS_HOME ? { AVS_HOME: process.env.AVS_HOME } : {}) };
   const plist = `<?xml version="1.0" encoding="UTF-8"?>

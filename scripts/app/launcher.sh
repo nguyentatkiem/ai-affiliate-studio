@@ -1,9 +1,9 @@
 #!/bin/bash
-# AI Video Studio.app launcher (copied into the bundle as Contents/MacOS/avs-launch.sh by scripts/make_app.sh).
+# AI Affiliate Studio.app launcher (copied into the bundle as Contents/MacOS/avs-launch.sh by scripts/make_app.sh).
 # usage: avs-launch.sh start | new <video> | reveal | stop | status
 # Errors go to stderr in Vietnamese with exit 2; the AppleScript applet shows them in a dialog.
 RES="$(cd "$(dirname "$0")/../Resources" && pwd)"
-PORT=$(cat "$RES/avs_port" 2>/dev/null || echo 5186)
+PORT=$(cat "$RES/avs_port" 2>/dev/null || echo 5187)
 URL="http://localhost:$PORT"
 LOG="$HOME/Library/Logs/AIVideoStudio.log"
 STATE="$HOME/Library/Application Support/AIVideoStudio"; PIDF="$STATE/server-$PORT.pid"
@@ -17,7 +17,7 @@ die() { log "LỖI: $*"; echo "$*" >&2; exit 2; }
 
 # Skill folder: installed skill first, then the path recorded at build time (recorded first when built with --skill).
 REC="$(cat "$RES/avs_skill" 2>/dev/null)"
-CANDS=("$HOME/.claude/skills/ai-video-studio" "$REC"); [ -f "$RES/avs_skill_pinned" ] && CANDS=("$REC" "$HOME/.claude/skills/ai-video-studio")
+CANDS=("$HOME/.claude/skills/ai-affiliate-studio" "$REC"); [ -f "$RES/avs_skill_pinned" ] && CANDS=("$REC" "$HOME/.claude/skills/ai-affiliate-studio")
 for c in "${CANDS[@]}"; do [ -n "$c" ] && [ -f "$c/studio/server.mjs" ] && { SKILL="$c"; break; }; done
 
 serving() { [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 "http://127.0.0.1:$PORT/api/features")" = 200 ]; }
@@ -27,14 +27,14 @@ remember() { local d; d=$(api /api/app/info | sed -n 's/.*"dir":"\([^"]*\)".*/\1
 
 check() {
   local miss=()
-  [ -n "$SKILL" ] || die "Không tìm thấy AI Video Studio.
-Cần thư mục ~/.claude/skills/ai-video-studio (cài skill trong Claude Code trước), rồi mở lại app."
+  [ -n "$SKILL" ] || die "Không tìm thấy AI Affiliate Studio.
+Cần thư mục ~/.claude/skills/ai-affiliate-studio (cài skill trong Claude Code trước), rồi mở lại app."
   command -v node >/dev/null || miss+=("• Node.js (≥ 18): brew install node  hoặc tải ở nodejs.org")
   command -v ffmpeg >/dev/null || miss+=("• ffmpeg: brew install ffmpeg")
   [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ] || [ -x "/Applications/Chromium.app/Contents/MacOS/Chromium" ] || [ -n "$CHROME_PATH" ] \
     || miss+=("• Google Chrome (để render video): tải ở google.com/chrome")
   [ -d "$SKILL/scripts/node_modules/puppeteer-core" ] || miss+=("• Thư viện render: chạy  bash \"$SKILL/scripts/setup.sh\"")
-  [ ${#miss[@]} -eq 0 ] || die "AI Video Studio cần cài thêm:
+  [ ${#miss[@]} -eq 0 ] || die "AI Affiliate Studio cần cài thêm:
 $(printf '%s\n' "${miss[@]}")
 Cài xong rồi mở lại app. Nhật ký: ~/Library/Logs/AIVideoStudio.log"
 }
@@ -43,7 +43,7 @@ start() {
   serving && return 0
   check
   local proj; proj="$(cat "$STATE/last_project" 2>/dev/null)"; [ -f "$proj/timeline.json" ] || proj=""
-  [ -n "$proj" ] || { [ -f "${AVS_HOME:-$HOME/.ai-video-studio}/footage/clip-mau/timeline.json" ] && proj="${AVS_HOME:-$HOME/.ai-video-studio}/footage/clip-mau"; }
+  [ -n "$proj" ] || { [ -f "${AVS_HOME:-$HOME/.ai-affiliate-studio}/footage/clip-mau/timeline.json" ] && proj="${AVS_HOME:-$HOME/.ai-affiliate-studio}/footage/clip-mau"; }
   log "khởi động máy chủ: $SKILL (cổng $PORT) ${proj:+dự án $proj}"
   cd "$SKILL" || die "Không vào được $SKILL"
   # every fd detached, otherwise AppleScript's "do shell script" waits for the server to exit

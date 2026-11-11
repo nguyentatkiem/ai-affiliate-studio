@@ -1,13 +1,13 @@
 // Desktop notification helper (references/autopilot.md): macOS Notification Center, Windows tray balloon, Linux notify-send. Never throws.
 //   node scripts/notify.mjs "<tiêu đề>" "<nội dung>"
 //   import { notify } from './notify.mjs'; notify('Tự lái xong', 'clip.mov → 2 video')
-// Respects ~/.ai-video-studio/autopilot.json {"notify": false} unless {force: true}.
+// Respects ~/.ai-affiliate-studio/autopilot.json {"notify": false} unless {force: true}.
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { notifyDesktop } from './platform.mjs';
 
-const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
 const q = s => String(s ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ').slice(0, 220);
 
 export function notifyEnabled() {
@@ -17,7 +17,7 @@ export function notify(title, msg, { force = false, sound = true } = {}) {
   return new Promise(ok => {
     if (process.env.AVS_NO_NOTIFY || (!force && !notifyEnabled())) return ok(false);
     if (process.platform !== 'darwin') return notifyDesktop(title, msg).then(ok);
-    const script = `display notification "${q(msg)}" with title "AI Video Studio" subtitle "${q(title)}"${sound ? ' sound name "Glass"' : ''}`;
+    const script = `display notification "${q(msg)}" with title "AI Affiliate Studio" subtitle "${q(title)}"${sound ? ' sound name "Glass"' : ''}`;
     execFile('osascript', ['-e', script], { timeout: 5000 }, e => ok(!e));
   });
 }

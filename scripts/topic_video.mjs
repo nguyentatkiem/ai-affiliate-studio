@@ -47,8 +47,8 @@ Chỉ trả về DUY NHẤT JSON (không markdown):
 }
 
 // ---------- TTS ----------
-function hasEdge() { try { execFileSync(process.platform === 'win32' ? 'where' : '/bin/sh', process.platform === 'win32' ? ['edge-tts'] : ['-lc', 'command -v edge-tts'], { stdio: 'pipe' }); return 'edge-tts'; } catch {} const b = path.join(path.dirname(PY), process.platform === 'win32' ? 'edge-tts.exe' : 'edge-tts'); return fs.existsSync(b) ? b : null; }
-async function tts(text, voice, rate, outWav) {
+export function hasEdge() { try { execFileSync(process.platform === 'win32' ? 'where' : '/bin/sh', process.platform === 'win32' ? ['edge-tts'] : ['-lc', 'command -v edge-tts'], { stdio: 'pipe' }); return 'edge-tts'; } catch {} const b = path.join(path.dirname(PY), process.platform === 'win32' ? 'edge-tts.exe' : 'edge-tts'); return fs.existsSync(b) ? b : null; }
+export async function tts(text, voice, rate, outWav) {
   const tmp = outWav.replace(/\.wav$/, '.src');
   if (process.platform !== 'darwin' && !voice.startsWith('edge:')) voice = 'edge:vi-VN-HoaiMyNeural'; // `say` voices exist only on macOS
   if (voice.startsWith('edge:')) {
@@ -92,7 +92,7 @@ export function alignLine(text, s, e, heard) {
   }
   return out.map(w => ({ w: w.w, s: r2(Math.max(s, w.s)), e: r2(Math.min(e, Math.max(w.e, w.s + .05))) }));
 }
-function captionsFrom(lines) { // ≤ 4 words / caption, break at punctuation and at line ends
+export function captionsFrom(lines) { // ≤ 4 words / caption, break at punctuation and at line ends
   const caps = [];
   for (const L of lines) {
     let cur = [];
@@ -105,7 +105,7 @@ function captionsFrom(lines) { // ≤ 4 words / caption, break at punctuation an
 
 // ---------- b-roll catalog search (same scoring as scripts/broll.mjs search) ----------
 let CAT = null;
-function brollSearch(q, avoid = new Set()) {
+export function brollSearch(q, avoid = new Set()) {
   CAT = CAT || JSON.parse(fs.readFileSync(path.join(SKILL, 'assets/broll/catalog.json'), 'utf8'));
   const words = fold(q).split(/[^a-z0-9%]+/).filter(w => w.length > 1), bigrams = words.slice(1).map((w, i) => words[i] + ' ' + w);
   let best = null, bs = 0;

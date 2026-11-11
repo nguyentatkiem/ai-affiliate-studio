@@ -21,7 +21,7 @@ import { pyBin } from './platform.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const SKILL = path.resolve(HERE, '..');
 export const PY = pyBin(HERE);
-export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
 const S = f => path.join(HERE, f);
 export const say = (p, s) => console.log(`@@ ${Math.max(0, Math.min(1, p)).toFixed(3)} ${s}`);
 const r2 = v => Math.round(v * 100) / 100;

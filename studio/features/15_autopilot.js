@@ -150,7 +150,7 @@
     $('#ap-notify').onchange = e => saveW({ notify: e.target.checked });
     $('#ap-appdrop').onchange = e => saveW({ appDrop: e.target.checked });
     $('#ap-agent').onchange = async e => {
-      if (e.target.checked && !confirm('Cài tác vụ nền macOS (LaunchAgent com.aivideostudio.watch)? Nó chạy hàng đợi + thư mục tự động cả khi Studio tắt. Gỡ bằng cách bỏ chọn ô này.')) { e.target.checked = false; return; }
+      if (e.target.checked && !confirm('Cài tác vụ nền macOS (LaunchAgent com.aiaffiliatestudio.watch)? Nó chạy hàng đợi + thư mục tự động cả khi Studio tắt. Gỡ bằng cách bỏ chọn ô này.')) { e.target.checked = false; return; }
       const r = await api('/api/autopilot/agent', { on: e.target.checked });
       Studio.toast(r.ok === false || r.error ? 'Lỗi: ' + (r.error || '') : e.target.checked ? 'Đã cài chạy nền' : 'Đã gỡ chạy nền');
       await refresh(); renderWatch();

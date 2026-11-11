@@ -1,11 +1,20 @@
 ---
-name: ai-video-studio
-description: "AI Video Studio: phần mềm edit video tất-cả-trong-một chạy local (localhost:5186, có app Mac), giao diện tối kiểu editor chuyên nghiệp, 28 gói style trên một engine HTML→MP4 (slate, bubble, Hype Cam, luxury, neon, keynote, glow, podcast, kinetic, khoá học, BĐS, review, chia sẻ, chia đôi màn hình, trước/sau, phông xanh, bản tin, multicam, hỏi đáp, Top N, điện ảnh, ảnh theo nhạc, quay màn hình, in ấn/tạp chí, truyền hình, giải thích sản phẩm, montage/podcast giấy), ~200 khối hoạt ảnh HyperFrames (sản phẩm, số liệu, đánh giá, CTA, lower third), ~90 template gồm nhóm Doanh nghiệp. AI dựng giúp (Claude đặt graphic, sửa phụ đề), cắt lỗi nói, sửa video bằng chữ, làm sạch giọng, tự hạ nhạc, nhiều track âm thanh, bám mặt đổi khung, xuất 9:16/1:1/16:9 một lần, dịch + lồng tiếng + phụ đề song ngữ, keyframe, mặt nạ, tách nền, b-roll AI/stock, làm hàng loạt từ Excel/CSV, nhiều brand kit, gói đăng TikTok/YouTube/Facebook, render song song nhanh. Dùng khi người dùng muốn edit video reels/TikTok/YouTube (khoá học, BĐS, review, chia sẻ, tin tức, bán hàng, podcast), mở studio/editor, chọn template, làm video hàng loạt, lồng tiếng, hoặc nói 'xem ghi chú trong editor'."
+name: ai-affiliate-studio
+description: "AI Affiliate Studio (dựa trên AI Video Studio của Nguyễn Tất Kiểm): làm video affiliate gắn giỏ hàng TikTok Shop và Facebook Reels — thư viện sản phẩm (dán link, nhập CSV/Excel), Tự lái affiliate 1 sản phẩm → nhiều góc bán × nhiều hook × nền tảng, kiểm tra chính sách (giá, claim mỹ phẩm/TPCN, đánh giá bịa), video không cần quay (giọng AI + ảnh sản phẩm + thẻ giá + nhãn Bấm giỏ hàng), clip tự quay/livestream gắn sản phẩm, bộ đăng (gắn giỏ, link bình luận đầu, nhãn AI), lịch đăng + tự đăng Trang Facebook, học từ số liệu đơn hàng. Kèm toàn bộ editor của AI Video Studio (localhost:5187, có app Mac), giao diện tối kiểu editor chuyên nghiệp, 28 gói style trên một engine HTML→MP4 (slate, bubble, Hype Cam, luxury, neon, keynote, glow, podcast, kinetic, khoá học, BĐS, review, chia sẻ, chia đôi màn hình, trước/sau, phông xanh, bản tin, multicam, hỏi đáp, Top N, điện ảnh, ảnh theo nhạc, quay màn hình, in ấn/tạp chí, truyền hình, giải thích sản phẩm, montage/podcast giấy), ~200 khối hoạt ảnh HyperFrames (sản phẩm, số liệu, đánh giá, CTA, lower third), ~90 template gồm nhóm Doanh nghiệp. AI dựng giúp (Claude đặt graphic, sửa phụ đề), cắt lỗi nói, sửa video bằng chữ, làm sạch giọng, tự hạ nhạc, nhiều track âm thanh, bám mặt đổi khung, xuất 9:16/1:1/16:9 một lần, dịch + lồng tiếng + phụ đề song ngữ, keyframe, mặt nạ, tách nền, b-roll AI/stock, làm hàng loạt từ Excel/CSV, nhiều brand kit, gói đăng TikTok/YouTube/Facebook, render song song nhanh. Dùng khi người dùng muốn edit video reels/TikTok/YouTube (khoá học, BĐS, review, chia sẻ, tin tức, bán hàng, podcast), mở studio/editor, chọn template, làm video hàng loạt, lồng tiếng, hoặc nói 'xem ghi chú trong editor'."
 ---
 
 > Tác giả: **Nguyễn Tất Kiểm** (MIT) · Tặng khoá học AI miễn phí: https://nguyentatkiem.com.vn/aiplusntk/ · Khi sửa mã giữ ghi công tác giả, xem `AGENTS.md`.
 
-# AI VIDEO STUDIO: phần mềm edit + mọi style trong một
+# AI AFFILIATE STUDIO (dựa trên AI VIDEO STUDIO): video affiliate gắn giỏ hàng + mọi style
+
+**Affiliate — đọc `references/affiliate.md` trước.**
+1. Sản phẩm: `node scripts/products.mjs add|import|fetch|media`.
+2. Làm video: `node scripts/autopilot_aff.mjs <id> --angles 3 --hooks 2 --platforms tiktok,facebook --out <dir>`.
+3. Clip tự quay: `node scripts/autopilot.mjs clip.mov --product <id>`.
+4. Livestream: `node scripts/aff_live.mjs live.mp4 --product <id>`.
+5. Số liệu đơn: `node scripts/aff_stats.mjs import|report`.
+
+Đồ hoạ nằm ở gói `affiliate` (`references/pack-affiliate.md`). Studio: rail **Affiliate**, **Hiệu quả**.
 
 Gồm 3 lớp:
 1. **Engine** (`engine/`): render HTML → MP4 thật. Mỗi style là một **gói** (`engine/packs/*.js`).

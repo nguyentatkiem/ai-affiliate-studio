@@ -1,4 +1,4 @@
-// Brand kit nhiều thương hiệu: lưu trong ~/.ai-video-studio/brands.json, áp cho dự án (TL.brand + logo vào media/), đổi nhanh trên thanh trên.
+// Brand kit nhiều thương hiệu: lưu trong ~/.ai-affiliate-studio/brands.json, áp cho dự án (TL.brand + logo vào media/), đổi nhanh trên thanh trên.
 (() => {
   const { $, esc } = Studio;
   const FONTS = [['', 'Mặc định của gói'], ['"Be Vietnam Pro", sans-serif', 'Be Vietnam Pro'], ['"Montserrat", sans-serif', 'Montserrat'], ['"Inter", sans-serif', 'Inter'],
@@ -69,7 +69,7 @@
     $('#libact').innerHTML = `<button class="icon" id="bk-new" title="Thương hiệu mới"><i class="ti ti-plus"></i></button>`;
     $('#bk-new').onclick = () => { EDIT = { ...DEF }; render(); };
     if (!LIST) { $('#libbody').innerHTML = '<div class="help">Đang tải…</div>'; return; }
-    $('#libbody').innerHTML = `<div class="help" style="margin-top:4px">Lưu nhiều bộ nhận diện (màu, font, logo, liên hệ) dùng lại cho mọi dự án và cho <b>Làm hàng loạt</b>. Lưu ở <code>~/.ai-video-studio/brands.json</code>.</div>
+    $('#libbody').innerHTML = `<div class="help" style="margin-top:4px">Lưu nhiều bộ nhận diện (màu, font, logo, liên hệ) dùng lại cho mọi dự án và cho <b>Làm hàng loạt</b>. Lưu ở <code>~/.ai-affiliate-studio/brands.json</code>.</div>
       ${EDIT ? form() : ''}
       ${LIST.map(card).join('') || (EDIT ? '' : '<div class="help">Chưa có thương hiệu nào.</div>')}
       <div class="acts"><button id="bk-new2"><i class="ti ti-plus"></i> Thương hiệu mới</button><button id="bk-fromproj" title="Lấy màu, tên, liên hệ đang đặt trong dự án này"><i class="ti ti-download"></i> Lưu từ dự án này</button></div>`;

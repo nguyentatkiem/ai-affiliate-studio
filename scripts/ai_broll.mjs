@@ -4,7 +4,7 @@
 //   node ai_broll.mjs suggest <captions.json> [--model sonnet] [--n 8]       -> JSON [{i,t0,t1,text,kind:'preset',id,...}|{kind:'stock',query}]
 //   node ai_broll.mjs genimage "<prompt>" <out.png> [--provider openai|gemini] [--vertical]
 //   node ai_broll.mjs keys                                                    -> which keys are configured (never prints them)
-// Keys: ~/.ai-video-studio/config.json (mode 600) {pexels, pixabay, openai, gemini} or env PEXELS_API_KEY, PIXABAY_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY.
+// Keys: ~/.ai-affiliate-studio/config.json (mode 600) {pexels, pixabay, openai, gemini} or env PEXELS_API_KEY, PIXABAY_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnClaude } from './platform.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const CONFIG = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio'), 'config.json');
+export const CONFIG = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio'), 'config.json');
 const UA = 'ai-video-studio/4.0 (b-roll search; local editor)';
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };

@@ -1,5 +1,5 @@
 // Style Lab (references/style-lab.md): clone a style from an edited reference video, or create one from a description,
-// with the Claude Code CLI. Work folders live in ~/.ai-video-studio/stylelab/<w>/ (analysis, prompt, Claude output, checks).
+// with the Claude Code CLI. Work folders live in ~/.ai-affiliate-studio/stylelab/<w>/ (analysis, prompt, Claude output, checks).
 //   GET  /api/stylelab/check                     → { ok, version } | { error }  (is `claude` installed?)
 //   POST /api/stylelab/upload?name=…             → raw body saved to stylelab/uploads/ → { path }
 //   POST /api/stylelab/analyze {path}            → job "stylelab": scripts/style_analyze.py → { ok, w }
@@ -12,7 +12,7 @@ import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'
 import { pathToFileURL } from 'node:url';
 
 export default ctx => {
-  const HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+  const HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
   const ROOT = path.join(HOME, 'stylelab');
   const LAB = path.join(ctx.SKILL, 'scripts/style_lab.mjs');
   let lib = null;

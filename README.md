@@ -1,8 +1,47 @@
-# 🎬 AI Video Studio
+# 🛒 AI Affiliate Studio
 
+> **Dựa trên AI Video Studio của Nguyễn Tất Kiểm** — <https://github.com/nguyentatkiem/ai-video-studio>
+>
 > **Tác giả: Nguyễn Tất Kiểm** · 🎁 **Tặng khoá học AI miễn phí:** <https://nguyentatkiem.com.vn/aiplusntk/>
 >
 > Mã nguồn mở theo giấy phép MIT. Khi sao chép, sửa hoặc phát hành lại (kể cả nhờ AI sửa), **giữ nguyên ghi công tác giả**. Xem [mục 16. Bản quyền và ghi công](#16-bản-quyền-và-ghi-công).
+
+## Bản affiliate: video gắn giỏ hàng TikTok Shop và Facebook
+
+Đơn vị làm việc là **sản phẩm**. Dán link, nhập file xuất từ trung tâm affiliate, hoặc nhập tay, rồi kéo ảnh/video sản phẩm vào. Bấm **Làm video**, **Tự lái affiliate** sẽ làm tiếp các bước:
+
+1. **AI viết kịch bản**: viết nhiều **góc bán** (nỗi đau → giải pháp, săn deal, 3 lý do, POV, review thật, đừng mua nếu…), mỗi góc có nhiều **hook 3 giây đầu** để A/B test. AI chỉ dùng thông tin có trong thẻ sản phẩm.
+2. **Kiểm tra chính sách TikTok Shop / Facebook**:
+   - Giá phải khớp.
+   - Không bịa đánh giá hay số đơn.
+   - Áp luật riêng cho mỹ phẩm, TPCN, mẹ & bé.
+   - Tự sửa từ nói quá. Kịch bản còn vi phạm thì bị bỏ.
+3. **Dựng video không cần quay**:
+   - Giọng đọc AI, phụ đề khớp từng chữ.
+   - Ảnh/video sản phẩm, thẻ giá, ưu/nhược.
+   - Kết bằng nhãn **"Bấm giỏ hàng" chỉ đúng góc giỏ vàng** (TikTok) hoặc **"Link ở bình luận đầu"** (Facebook).
+4. **Xuất và đăng**:
+   - MP4 9:16, ảnh bìa, **bộ đăng** (caption, hashtag, sản phẩm cần gắn giỏ, bình luận đầu chứa link, nhắc bật nhãn AI).
+   - Lịch đăng. Có tự đăng Reels lên Trang Facebook.
+5. **Học từ đơn hàng**: nhập file hiệu suất video, Tự lái biết góc bán và hook nào ra đơn để ưu tiên lần sau.
+
+Studio có thêm hai chế độ:
+- **Clip tự quay**: review, unbox.
+- **Livestream dài → nhiều clip**.
+
+Cả hai đều tự gắn thẻ giá khi người nói nhắc giá, gắn nhãn giỏ hàng và soát lời nói theo luật.
+
+```bash
+bash studio.sh                     # Studio ở http://localhost:5187 → rail "Affiliate"
+node scripts/products.mjs add --name "Kem chống nắng X" --price 199k --old 299k --usp "Không bết|Nâng tông nhẹ" --media a.jpg,b.mp4
+node scripts/autopilot_aff.mjs kem-chong-nang-x --angles 3 --hooks 2 --platforms tiktok,facebook --out ~/Movies/Affiliate
+```
+
+Tài liệu kỹ thuật: [references/affiliate.md](references/affiliate.md) · phương án cải tạo: [docs/PHUONG-AN-AFFILIATE.md](docs/PHUONG-AN-AFFILIATE.md).
+
+Dữ liệu nằm riêng ở `~/.ai-affiliate-studio` và Studio chạy ở cổng 5187, nên chạy song song được với AI Video Studio gốc. Toàn bộ tính năng của bản gốc vẫn giữ nguyên, mô tả bên dưới.
+
+---
 
 **Phần mềm edit video chạy ngay trên máy của bạn (macOS và Windows 10/11), có AI hỗ trợ.** Làm Reels, TikTok, YouTube Shorts và video ngang YouTube cho khoá học, bất động sản, review, chia sẻ, tin tức, bán hàng, podcast.
 

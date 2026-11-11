@@ -62,7 +62,7 @@
           <textarea id="abgen" rows="4" placeholder="Mô tả ảnh, VD: robot trợ lý đang làm việc trong văn phòng hiện đại, ánh sáng điện ảnh, dọc 9:16">${esc(GEN)}</textarea>
           ${KEYS.openai && KEYS.gemini ? `<select id="abprov"><option value="openai">OpenAI</option><option value="gemini">Google Gemini (Imagen)</option></select>` : ''}
           <div class="acts"><button class="primary" data-abact="gen"><i class="ti ti-photo-ai"></i> Tạo ảnh</button></div>`
-        : `<div class="empty"><i class="ti ti-photo-ai"></i><b>Cần API key tạo ảnh</b><span>Studio không tự tạo ảnh khi chưa có key. Dán <b>OpenAI API key</b> (platform.openai.com → API keys) hoặc <b>Google Gemini API key</b> (aistudio.google.com → Get API key) trong ⚙ Key. Key lưu trên máy ở ~/.ai-video-studio/config.json (chỉ bạn đọc được).</span><button data-abact="keys"><i class="ti ti-key"></i> Dán key</button></div>`;
+        : `<div class="empty"><i class="ti ti-photo-ai"></i><b>Cần API key tạo ảnh</b><span>Studio không tự tạo ảnh khi chưa có key. Dán <b>OpenAI API key</b> (platform.openai.com → API keys) hoặc <b>Google Gemini API key</b> (aistudio.google.com → Get API key) trong ⚙ Key. Key lưu trên máy ở ~/.ai-affiliate-studio/config.json (chỉ bạn đọc được).</span><button data-abact="keys"><i class="ti ti-key"></i> Dán key</button></div>`;
     }
     $('#libbody').innerHTML = `<div id="abpanel">${seg}${h}</div>`;
     const q = $('#abq'); if (q) q.onkeydown = e => { if (e.key === 'Enter') search(); };
@@ -78,7 +78,7 @@
     Studio.modal(`<h3><i class="ti ti-key"></i> API key cho B-roll AI</h3>
       ${f('pexels', 'Pexels', 'pexels.com/api → miễn phí')}${f('pixabay', 'Pixabay', 'pixabay.com/api/docs → miễn phí')}
       ${f('openai', 'OpenAI (tạo ảnh)', 'sk-…')}${f('gemini', 'Google Gemini (tạo ảnh Imagen)', 'AIza…')}
-      <p class="muted">Lưu tại <code>~/.ai-video-studio/config.json</code> (quyền 600, chỉ tài khoản của bạn đọc được), không ghi vào dự án. Để trống = giữ nguyên. Gõ một dấu cách rồi lưu để xoá key.</p>
+      <p class="muted">Lưu tại <code>~/.ai-affiliate-studio/config.json</code> (quyền 600, chỉ tài khoản của bạn đọc được), không ghi vào dự án. Để trống = giữ nguyên. Gõ một dấu cách rồi lưu để xoá key.</p>
       <div class="actions"><button onclick="closeModal()">Huỷ</button><button class="primary" id="ksave">Lưu</button></div>`);
     $('#ksave').onclick = async () => {
       const b = {}; for (const k of ['pexels', 'pixabay', 'openai', 'gemini']) { const v = $('#k_' + k).value; if (v) b[k] = v.trim() ? v : ''; }

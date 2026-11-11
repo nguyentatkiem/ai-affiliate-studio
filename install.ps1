@@ -5,8 +5,8 @@ param([switch]$NoSkill, [switch]$NoShortcut, [switch]$Yes)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $REPO = $PSScriptRoot
-$SKILL_DIR = if ($env:AVS_SKILL_DIR) { $env:AVS_SKILL_DIR } else { Join-Path $HOME '.claude\skills\ai-video-studio' }
-$HOME_DIR = if ($env:AVS_HOME) { $env:AVS_HOME } else { Join-Path $HOME '.ai-video-studio' }
+$SKILL_DIR = if ($env:AVS_SKILL_DIR) { $env:AVS_SKILL_DIR } else { Join-Path $HOME '.claude\skills\ai-affiliate-studio' }
+$HOME_DIR = if ($env:AVS_HOME) { $env:AVS_HOME } else { Join-Path $HOME '.ai-affiliate-studio' }
 $SAMPLE = Join-Path $HOME_DIR 'footage\clip-mau'
 
 function Say($m) { Write-Host "▸ $m" -ForegroundColor Magenta }
@@ -102,7 +102,7 @@ if (-not $NoShortcut) {
     $l = $sh.CreateShortcut((Join-Path $dir 'AI Video Studio.lnk'))
     $l.TargetPath = Join-Path $REPO 'studio.cmd'; $l.WorkingDirectory = $REPO; $l.WindowStyle = 7
     $ico = Join-Path $REPO 'scripts\app\icon.ico'; if (Test-Path $ico) { $l.IconLocation = $ico }
-    $l.Description = 'Mở AI Video Studio (http://localhost:5186)'; $l.Save()
+    $l.Description = 'Mở AI Video Studio (http://localhost:5187)'; $l.Save()
   }
   Say 'Đã tạo lối tắt "AI Video Studio" ngoài Desktop và trong Start Menu'
 }
@@ -112,6 +112,6 @@ Write-Host '✅ Cài xong AI Video Studio.' -ForegroundColor Green
 Write-Host ''
 Write-Host '  Mở Studio với clip mẫu:   bấm đúp "AI Video Studio" ngoài Desktop (hoặc studio.cmd)'
 Write-Host "  Mở với video của bạn:     `"$REPO\studio.cmd`" --new C:\đường\dẫn\video.mp4"
-Write-Host '  Trình duyệt sẽ mở http://localhost:5186 — giữ cửa sổ đen (server) mở trong lúc dùng.'
+Write-Host '  Trình duyệt sẽ mở http://localhost:5187 — giữ cửa sổ đen (server) mở trong lúc dùng.'
 Write-Host ''
 Write-Host '  Tác giả: Nguyễn Tất Kiểm · Tặng khoá học AI miễn phí: https://nguyentatkiem.com.vn/aiplusntk/' -ForegroundColor Magenta

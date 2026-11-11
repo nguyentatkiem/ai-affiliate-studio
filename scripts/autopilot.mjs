@@ -31,13 +31,14 @@ export const STEPS = [
   ['ai', 'AI dựng giúp (graphic, phụ đề, nhạc)', 14],
   ['broll', 'B-roll tự động', 5],
   ['sfx', 'SFX + nhạc nền', 4],
+  ['aff', 'Gắn sản phẩm affiliate (giá, giỏ hàng, soát lời nói)', 2],
   ['qc', 'AI kiểm tra lỗi (QC)', 8],
   ['export', 'Xuất video (trộn tiếng −14 LUFS + render)', 30, true],
   ['publish', 'Viết nội dung đăng', 8],
   ['cover', 'Ảnh bìa', 4],
   ['deliver', 'Gom kết quả + thông báo', 3, true],
 ];
-const MUTATES = new Set(['brand', 'clean', 'fillers', 'ai', 'broll', 'sfx', 'qc']);
+const MUTATES = new Set(['brand', 'clean', 'fillers', 'ai', 'broll', 'sfx', 'aff', 'qc']);
 
 const rd = (f, d = null) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return d; } };
 const wr = (f, o) => { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = `${f}.${process.pid}.tmp`; fs.writeFileSync(t, JSON.stringify(o, null, 1)); fs.renameSync(t, f); };
@@ -163,7 +164,7 @@ async function exportProject(dir, { quality = '1080', aspects = [] }, say) {
 }
 
 // ---------- main ----------
-export async function autopilot(input, { profile: profId, out: outDir, project: projArg, restart, from } = {}) {
+export async function autopilot(input, { profile: profId, out: outDir, project: projArg, restart, from, product: prodId, platform: affPlatform } = {}) {
   const t00 = Date.now();
   const abs = path.resolve(input.replace(/^~(?=\/)/, os.homedir()));
   if (!fs.existsSync(abs)) throw new Error(`Không thấy ${abs}`);
@@ -179,6 +180,7 @@ export async function autopilot(input, { profile: profId, out: outDir, project: 
     st = { version: 1, input: abs, steps: {} };
   }
   Object.assign(st, { profile: prof0.id, profileName: prof0.name, project: dir, out: outDir ? path.resolve(outDir) : st.out || null, state: 'running', pid: process.pid, started: st.started || new Date().toISOString(), learnedApplied: prof.applied });
+  if (prodId) st.product = prodId; if (affPlatform) st.platform = affPlatform; // affiliate: product from the library (scripts/products.mjs)
   if (from) { let on = false; for (const [id] of STEPS) { if (id === from) on = true; if (on) { delete st.steps[id]; fs.rmSync(path.join(dir, '.studio/autopilot', `pre_${id}.json`), { force: true }); } } }
   if (isProj && !st.steps.new) st.steps.new = { state: 'skipped', msg: 'dự án có sẵn', sec: 0 };
   fs.mkdirSync(path.join(dir, '.studio'), { recursive: true });
@@ -302,6 +304,16 @@ export async function autopilot(input, { profile: profId, out: outDir, project: 
       res.sfx = { sfx: tl.audio.sfx?.length || 0, music: (tl.audio.music || []).map(m => m.mood || path.basename(m.file || '')).filter(Boolean) };
       return notes.length ? `${notes.join(' · ')} · ${res.sfx.sfx} SFX, nhạc: ${res.sfx.music.join(', ') || '—'}` : { skip: 'tắt trong hồ sơ' };
     },
+    async aff() {
+      if (!st.product) return { skip: 'không gắn sản phẩm (--product)' };
+      const { getProduct } = await import('./products.mjs'), p = getProduct(st.product);
+      if (!p) throw new Error(`không thấy sản phẩm ${st.product}`);
+      const { applyAffOverlays } = await import('./aff_overlay.mjs');
+      const pl = st.platform || (prof.aff_platforms || ['tiktok'])[0];
+      const r = applyAffOverlays(dir, p, { platform: pl });
+      res.aff = { product: p.id, platform: pl, issues: r.issues.length };
+      return `${p.name} · ${r.price ? `thẻ giá${r.priceAt != null ? ' lúc ' + r.priceAt + 's' : ''}` : 'chưa có giá'} · giỏ hàng từ ${r.cart}s${r.issues.length ? ` · ⚠ lời nói có ${r.issues.length} chỗ vi phạm (${r.issues.slice(0, 2).map(x => x.hit).join(', ')}) — nên quay lại câu đó` : ''}`;
+    },
     async qc() {
       if (!prof.qc) return { skip: 'tắt trong hồ sơ' };
       if (!fs.existsSync(S('ai_qc.mjs'))) return { skip: 'chưa có scripts/ai_qc.mjs' };
@@ -329,6 +341,14 @@ export async function autopilot(input, { profile: profId, out: outDir, project: 
       const doc = await generatePublish({ dir, tl, captions: caps, videoAbs: P(v.out), videoRel: v.out, platforms: prof.platforms, notes, model: 'sonnet', onProc: p => { CUR = p; } });
       res.publish = Object.keys(doc.platforms).map(k => `publish/${k}.txt`);
       res.thumb = Object.values(doc.platforms).find(d => d.thumb_time != null) || null;
+      if (st.product) { // affiliate: posting kit per platform (cart product / link in first comment)
+        const { getProduct } = await import('./products.mjs'), { buildKit, writeKit } = await import('./aff_kit.mjs'), p = getProduct(st.product), t2 = loadTL(dir).tl;
+        if (p) for (const pl of ['tiktok', 'facebook'].filter(x => prof.platforms.includes(x) || x === t2._aff?.platform)) {
+          const d = doc.platforms[pl] || Object.values(doc.platforms)[0] || {};
+          writeKit(dir, buildKit({ ...t2, _aff: { ...t2._aff, title: d.title || t2._aff?.title, caption: d.caption, hashtags: d.hashtags } }, p, pl, { aiVoice: false }));
+          res.publish.push(`publish/kit_${pl}.txt`);
+        }
+      }
       return `${Object.keys(doc.platforms).join(', ')}`;
     },
     async cover() {
@@ -412,7 +432,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(path.re
   if (args.includes('--steps')) { for (const [id, l, , r] of STEPS) console.log(`${id.padEnd(8)} ${l}${r ? ' (bắt buộc)' : ''}`); process.exit(0); }
   const input = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--') && !['--restart'].includes(args[i - 1])));
   if (!input) { console.error('usage: node scripts/autopilot.mjs <video|project_dir> [--profile <id>] [--out <dir>] [--project <dir>] [--restart] [--from <step>]'); process.exit(2); }
-  autopilot(input, { profile: opt('--profile'), out: opt('--out'), project: opt('--project'), restart: args.includes('--restart'), from: opt('--from') })
+  autopilot(input, { profile: opt('--profile'), out: opt('--out'), project: opt('--project'), restart: args.includes('--restart'), from: opt('--from'), product: opt('--product'), platform: opt('--platform') })
     .then(() => process.exit(0))
     .catch(e => { console.error('LỖI: ' + e.message); process.exit(1); });
 }

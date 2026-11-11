@@ -9,8 +9,8 @@
 //   node scripts/style_lab.mjs validate <pack.js> [--id u_x]         (engine check of a pack file)
 //   node scripts/style_lab.mjs apply <id> <project_dir> [--title …]  (apply the style's template to timeline.json)
 //   node scripts/style_lab.mjs list | sync [--no-skills] | delete <id> | check
-// Common: [--footage <project>] (default ~/.ai-video-studio/footage/clip-mau) — talking-head footage for validation + preview.
-// Env: AVS_SKILLS_DIR (default ~/.claude/skills), AVS_HOME (default ~/.ai-video-studio), CLAUDE_BIN.
+// Common: [--footage <project>] (default ~/.ai-affiliate-studio/footage/clip-mau) — talking-head footage for validation + preview.
+// Env: AVS_SKILLS_DIR (default ~/.claude/skills), AVS_HOME (default ~/.ai-affiliate-studio), CLAUDE_BIN.
 // Progress lines "@@ <0..1> <step>" on stdout; the run's result is <work>/result.json.
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { findChrome, pyBin, claudeBin, spawnClaude } from './platform.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+const HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
 const STORE = path.join(HOME, 'packs');
 const SKILLS = process.env.AVS_SKILLS_DIR || path.join(os.homedir(), '.claude', 'skills');
 const UPACK = path.join(SKILL, 'engine/packs/user');
@@ -348,9 +348,9 @@ description: "${desc}"
 ${meta.summary || meta.desc || ''}
 Nguồn: ${src}. Gói engine: \`${id}\` · template: \`${id}\` · spec: \`references/user/${id}.md\`.
 
-## Cách dùng (cần skill AI Video Studio tại \`~/.claude/skills/ai-video-studio\`, gọi là <skill>)
-1. Kiểm tra gói đã có: \`ls <skill>/engine/packs/user/${id}.js\`. Nếu thiếu (ví dụ sau khi cài lại skill): \`node <skill>/scripts/style_lab.mjs sync\` (khôi phục từ \`~/.ai-video-studio/packs/\`).
-2. Dự án từ clip thô: \`node <skill>/studio/server.mjs --new clip.mp4 <dir> --port 5186\` (nhận giọng, cắt lặng, phụ đề).
+## Cách dùng (cần skill AI Video Studio tại \`~/.claude/skills/ai-affiliate-studio\`, gọi là <skill>)
+1. Kiểm tra gói đã có: \`ls <skill>/engine/packs/user/${id}.js\`. Nếu thiếu (ví dụ sau khi cài lại skill): \`node <skill>/scripts/style_lab.mjs sync\` (khôi phục từ \`~/.ai-affiliate-studio/packs/\`).
+2. Dự án từ clip thô: \`node <skill>/studio/server.mjs --new clip.mp4 <dir> --port 5187\` (nhận giọng, cắt lặng, phụ đề).
 3. Áp style: \`node <skill>/scripts/style_lab.mjs apply ${id} <dir> --title "Tiêu đề"\` — hoặc trong Studio: Mẫu → "${meta.name}" → Dùng mẫu; panel "Tạo style" → Áp dụng cho dự án.
 4. Tinh chỉnh như mọi gói: \`TL.pack = "${id}"\`, \`caption_style = "${id}"\`, thêm/sửa scene theo bảng module bên dưới, sửa phụ đề (hl, br).
 5. QC + render: \`node <skill>/scripts/render.mjs <dir>/timeline.json x --still 3 qc.jpg\`, rồi mở Studio bấm Xuất (hoặc \`mix_audio.py\` + \`render.mjs\` theo SKILL.md của AI Video Studio).
@@ -395,7 +395,7 @@ export function listStyles() {
       thumb: fs.existsSync(path.join(TPL, 'previews', t.id + '.jpg')) ? `/templates/previews/${t.id}.jpg` : null }))
     .sort((a, b) => String(b.created).localeCompare(String(a.created)));
 }
-// Restore packs/templates/specs from ~/.ai-video-studio/packs (e.g. after the skill folder was reinstalled).
+// Restore packs/templates/specs from ~/.ai-affiliate-studio/packs (e.g. after the skill folder was reinstalled).
 export function sync(quiet) {
   let n = 0;
   if (fs.existsSync(STORE)) for (const f of fs.readdirSync(STORE).filter(f => /^u_.*\.js$/.test(f))) {

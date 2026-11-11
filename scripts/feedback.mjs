@@ -3,7 +3,7 @@
 // into concrete changes + suggestions → suggestions the user (or the bot) applies or dismisses.
 //   node scripts/feedback.mjs add <video|project> <1-5> [tag,tag] ["góp ý"]
 //   node scripts/feedback.mjs improve [--no-claude] [--apply]        → JSON report
-//   node scripts/feedback.mjs suggest [--no-claude]                  → refresh ~/.ai-video-studio/suggestions.json
+//   node scripts/feedback.mjs suggest [--no-claude]                  → refresh ~/.ai-affiliate-studio/suggestions.json
 //   node scripts/feedback.mjs list | suggestions | act <id> apply|dismiss
 import fs from 'node:fs';
 import path from 'node:path';

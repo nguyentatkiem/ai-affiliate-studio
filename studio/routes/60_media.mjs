@@ -1,7 +1,7 @@
 // Mask / background removal / sticker / b-roll AI endpoints (spec: references/keyframes-mask-broll.md).
 //   POST /api/segment {src, in, out, fps}        -> job: person cutouts for a clip's source range (scripts/segment.py), out = {cutouts}
 //   POST /api/sticker {frame}                    -> job: die-cut sticker PNG from one frame (scripts/make_sticker.py), out = {path}
-//   GET  /api/aikeys  · POST /api/aikeys {pexels?, pixabay?, openai?, gemini?}   (~/.ai-video-studio/config.json, mode 600; never returns keys)
+//   GET  /api/aikeys  · POST /api/aikeys {pexels?, pixabay?, openai?, gemini?}   (~/.ai-affiliate-studio/config.json, mode 600; never returns keys)
 //   GET  /api/stock?q=&kind=photo|video&src=     -> search results (no download)
 //   POST /api/stock/fetch {url, kind, name, meta} -> download + normalise into media/, returns media item
 //   POST /api/broll/suggest {model?}             -> job: claude -p per-sentence b-roll ideas, out = [...]

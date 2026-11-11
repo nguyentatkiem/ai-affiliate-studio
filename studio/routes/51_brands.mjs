@@ -1,4 +1,4 @@
-// Brand kit nhiều thương hiệu: ~/.ai-video-studio/brands.json + logo trong ~/.ai-video-studio/brands/<id>/ (AVS_HOME đổi được thư mục).
+// Brand kit nhiều thương hiệu: ~/.ai-affiliate-studio/brands.json + logo trong ~/.ai-affiliate-studio/brands/<id>/ (AVS_HOME đổi được thư mục).
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';

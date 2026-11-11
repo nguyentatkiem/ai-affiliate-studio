@@ -1,12 +1,12 @@
 // Disk cache for the few things the engine pulls from the internet: Fluent 3D emoji and brand icons (jsDelivr) and
 // Google font files. Studio serves them at /cdn/… and render.mjs answers its Chromes from here, so every emoji/font is
-// downloaded once per machine instead of once per preview and once per render worker. Cache: ~/.ai-video-studio/cache/net
+// downloaded once per machine instead of once per preview and once per render worker. Cache: ~/.ai-affiliate-studio/cache/net
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const DIR = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio'), 'cache', 'net');
+const DIR = path.join(process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio'), 'cache', 'net');
 // Only immutable-enough files: jsDelivr packages/repos and Google's font binaries (never the CSS, which varies by browser).
 export const cacheable = url => /^https:\/\/(cdn\.jsdelivr\.net\/(gh|npm)\/|fonts\.gstatic\.com\/)/.test(url);
 const TYPES = { png: 'image/png', svg: 'image/svg+xml', webp: 'image/webp', jpg: 'image/jpeg', woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', js: 'text/javascript; charset=utf-8', mjs: 'text/javascript; charset=utf-8', json: 'application/json' };

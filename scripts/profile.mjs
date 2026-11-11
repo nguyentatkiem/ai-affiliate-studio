@@ -1,4 +1,4 @@
-// Hồ sơ kênh (channel profiles) for Tự lái: ~/.ai-video-studio/profiles.json (AVS_HOME overrides), plus "Học từ chỉnh sửa".
+// Hồ sơ kênh (channel profiles) for Tự lái: ~/.ai-affiliate-studio/profiles.json (AVS_HOME overrides), plus "Học từ chỉnh sửa".
 // Spec: references/autopilot.md. CLI:
 //   node scripts/profile.mjs list | show <id> | default <id> | learn <project_dir> | reset-learned <id>
 import fs from 'node:fs';
@@ -7,16 +7,16 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
-export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
 const FILE = path.join(AVS_HOME, 'profiles.json');
 
 export const DEFAULT_PROFILE = {
   id: 'mac-dinh', name: 'Mặc định',
-  brand: '',                 // brand kit id (~/.ai-video-studio/brands.json), '' = none
+  brand: '',                 // brand kit id (~/.ai-affiliate-studio/brands.json), '' = none
   pack: 'auto',              // 'auto' = AI chọn · 'keep' · pack id
   template: '',              // template id (templates/*.json) instead of AI dựng giúp; '' = AI
   caption_style: '',         // force a caption style ('' = what the pack/AI chooses)
-  goal: 'Chia sẻ', tone: 'Tự nhiên, gần gũi', ai_density: 'vua', extra: '',
+  goal: 'Bán hàng affiliate', tone: 'Tự nhiên, gần gũi', ai_density: 'vua', extra: '',
   ai: true,                  // AI dựng giúp (claude -p)
   broll_density: 'vua',      // off | thua | vua | day | ratday
   broll_src: ['preset', 'hf', 'text', 'emoji', 'logo', 'aroll', 'lib'],
@@ -30,11 +30,20 @@ export const DEFAULT_PROFILE = {
   aspects: ['9:16'],         // formats to deliver; the native one is always rendered
   quality: '1080',
   qc: true,                  // A2's scripts/ai_qc.mjs --fix when present
-  cta: '',                   // call to action (outro + publish texts)
-  platforms: ['tiktok', 'youtube', 'facebook'],
+  cta: 'Bấm giỏ hàng để xem giá ưu đãi', // call to action (outro + publish texts)
+  platforms: ['tiktok', 'facebook'],
   slot: '19:00',             // default schedule slot (Lịch đăng, A4)
   learn: true,               // learn from the user's edits of autopilot projects
   learned: null,
+  // Tự lái affiliate (scripts/autopilot_aff.mjs, references/affiliate.md)
+  aff_angles: 3,             // góc bán mỗi sản phẩm
+  aff_hooks: 2,              // hook (3 giây đầu) mỗi góc — để A/B test
+  aff_platforms: ['tiktok'], // tiktok | facebook (mỗi nền tảng một bản: CTA giỏ hàng / link ở bình luận)
+  aff_dur: 30,               // giây
+  aff_strict: true,          // bỏ kịch bản còn vi phạm chính sách sau khi tự sửa
+  aff_autoschedule: false,   // tự rải video vào Lịch đăng
+  voice: 'auto',             // auto (edge-tts Hoài My nếu có, không thì Linh) | edge:vi-VN-NamMinhNeural | Linh
+  persona: '',               // giọng kênh, vd "chị bán hàng vui vẻ, nói nhanh", "review khách quan kiểu dân văn phòng"
 };
 const STEPS_DENS = ['off', 'thua', 'vua', 'day', 'ratday'];
 const STEPS_SOUND = ['off', 'nhe', 'vua', 'phongphu'];

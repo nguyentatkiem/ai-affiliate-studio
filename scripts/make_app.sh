@@ -1,18 +1,18 @@
 #!/bin/bash
-# Build "AI Video Studio.app" — mở studio không cần Terminal, thả video vào icon để tạo dự án.
-# usage: bash scripts/make_app.sh [--dest ~/Applications] [--skill <thư mục skill>] [--port 5186] [--no-browser]
+# Build "AI Affiliate Studio.app" — mở studio không cần Terminal, thả video vào icon để tạo dự án.
+# usage: bash scripts/make_app.sh [--dest ~/Applications] [--skill <thư mục skill>] [--port 5187] [--no-browser]
 #   --dest     nơi đặt app (mặc định ~/Applications)
-#   --skill    ghim thư mục skill (mặc định: ~/.claude/skills/ai-video-studio, dự phòng = thư mục chứa script này)
-#   --port     cổng máy chủ (mặc định 5186)
+#   --skill    ghim thư mục skill (mặc định: ~/.claude/skills/ai-affiliate-studio, dự phòng = thư mục chứa script này)
+#   --port     cổng máy chủ (mặc định 5187)
 #   --no-browser  (để test) không tự mở trình duyệt
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"; SRC="$HERE/app"
-DEST="$HOME/Applications"; SKILL="$(cd "$HERE/.." && pwd)"; PIN=""; PORT=5186; NOBROWSER=""
+DEST="$HOME/Applications"; SKILL="$(cd "$HERE/.." && pwd)"; PIN=""; PORT=5187; NOBROWSER=""
 while [ $# -gt 0 ]; do case "$1" in
   --dest) DEST="$2"; shift 2;; --skill) SKILL="$(cd "$2" && pwd)"; PIN=1; shift 2;; --port) PORT="$2"; shift 2;;
   --no-browser) NOBROWSER=1; shift;; -h|--help) sed -n 2,7p "$0"; exit 0;; *) echo "không hiểu tham số: $1" >&2; exit 1;; esac; done
 command -v osacompile >/dev/null || { echo "Cần macOS (osacompile)" >&2; exit 1; }
-mkdir -p "$DEST"; APP="$DEST/AI Video Studio.app"; TMP="$(mktemp -d)"
+mkdir -p "$DEST"; APP="$DEST/AI Affiliate Studio.app"; TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 # 1) stay-open AppleScript applet (on run / on open / on reopen / on quit)
@@ -36,9 +36,9 @@ rm -f "$R/Assets.car" # newer osacompile ships an asset catalog icon that would 
 
 # 3) Info.plist: name, id, video document types (drop onto Dock/Finder icon)
 PB=/usr/libexec/PlistBuddy; PL="$APP/Contents/Info.plist"
-$PB -c "Set :CFBundleName 'AI Video Studio'" "$PL"
-$PB -c "Add :CFBundleDisplayName string 'AI Video Studio'" "$PL" 2>/dev/null || true
-$PB -c "Delete :CFBundleIdentifier" "$PL" 2>/dev/null || true; $PB -c "Add :CFBundleIdentifier string com.aivideostudio.studio" "$PL"
+$PB -c "Set :CFBundleName 'AI Affiliate Studio'" "$PL"
+$PB -c "Add :CFBundleDisplayName string 'AI Affiliate Studio'" "$PL" 2>/dev/null || true
+$PB -c "Delete :CFBundleIdentifier" "$PL" 2>/dev/null || true; $PB -c "Add :CFBundleIdentifier string com.aiaffiliatestudio.studio" "$PL"
 $PB -c "Delete :CFBundleIconName" "$PL" 2>/dev/null || true; $PB -c "Set :CFBundleIconFile applet" "$PL" 2>/dev/null || $PB -c "Add :CFBundleIconFile string applet" "$PL"
 $PB -c "Add :CFBundleShortVersionString string 4.0" "$PL" 2>/dev/null || $PB -c "Set :CFBundleShortVersionString 4.0" "$PL"
 $PB -c "Delete :CFBundleDocumentTypes" "$PL" 2>/dev/null || true

@@ -1,5 +1,5 @@
 // AI Video Studio — local editor server (no dependencies beyond Node ≥ 18).
-// usage: node studio/server.mjs [project_dir | timeline.json] [--port 5186] [--open]
+// usage: node studio/server.mjs [project_dir | timeline.json] [--port 5187] [--open]
 //        node studio/server.mjs --new raw.mp4 [project_dir]      (build a starter project, then open it)
 // Serves the editor UI (studio/, incl. studio/thumbs/), the render engine (engine/), the skill's sound/music library (assets/),
 // the template gallery (templates/, override with --templates <dir>)
@@ -17,7 +17,7 @@ const SKILL = path.resolve(HERE, '..');
 const PY = pyBin(SKILL);
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-const PORT = +opt('--port', process.env.PORT || 5186);
+const PORT = +opt('--port', process.env.PORT || 5187);
 const VERSION = '4.0';
 // Template gallery (GET /api/templates): <skill>/templates/*.json + templates/user/*.json, previews in templates/previews/.
 const TPL_DIR = path.resolve(opt('--templates', process.env.AVS_TEMPLATES || path.join(SKILL, 'templates')));
@@ -414,13 +414,13 @@ if (args[0] === '--new') {
 // Studio already running on this port (e.g. the shortcut was clicked twice): just show it instead of crashing.
 server.on('error', e => {
   if (e.code !== 'EADDRINUSE') throw e;
-  console.log(`Cổng ${PORT} đang chạy AI Video Studio → mở trình duyệt`);
+  console.log(`Cổng ${PORT} đang chạy AI Affiliate Studio → mở trình duyệt`);
   if (args.includes('--open')) openPath(`http://localhost:${PORT}`);
   setTimeout(() => process.exit(0), 1500);
 });
 server.listen(PORT, '127.0.0.1', () => {
   const link = `http://localhost:${PORT}`;
-  console.log(`AI Video Studio ${VERSION} → ${link}`);
+  console.log(`AI Affiliate Studio ${VERSION} (dựa trên AI Video Studio) → ${link}`);
   console.log('Tác giả: Nguyễn Tất Kiểm · Tặng khoá học AI miễn phí: https://nguyentatkiem.com.vn/aiplusntk/');
   if (args.includes('--open')) openPath(link);
 });

@@ -4,7 +4,7 @@
 //   • /chude <chủ đề> → video từ chủ đề · /trangthai · /dexuat · /caitien · /hoso · /help
 //   • nhắn tự do → agent (Claude CLI) hiểu ý và chạy đúng việc
 //   • chấm ★ + bấm thẻ góp ý + gõ góp ý → feedback.mjs → tự cải tiến hồ sơ kênh; mỗi sáng gửi đề xuất kèm nút Áp dụng.
-// Config ~/.ai-video-studio/telegram.json (mode 600): {token, on, allowed:[{id,name}], pair, profile, digest:"08:00", autoImprove}
+// Config ~/.ai-affiliate-studio/telegram.json (mode 600): {token, on, allowed:[{id,name}], pair, profile, digest:"08:00", autoImprove}
 //   node scripts/telegram.mjs token <BOT_TOKEN>   · pair (in mã ghép nối) · run (chạy bot + hàng đợi) · status
 // Inside the Studio server the bot runs in-process (studio/routes/46_agent.mjs).
 import fs from 'node:fs';

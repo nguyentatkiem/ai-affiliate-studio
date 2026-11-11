@@ -22,7 +22,7 @@ import { findChrome, linkPath, pyBin } from './platform.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILL = path.resolve(HERE, '..');
 const PY = pyBin(HERE);
-export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+export const AVS_HOME = process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
 const IMG = /\.(jpe?g|png|webp|gif)$/i, VID = /\.(mp4|mov|m4v|webm|mkv)$/i;
 
 // ---------- spreadsheet ----------
@@ -145,7 +145,7 @@ export function autoMap(targets, columns) {
   return map;
 }
 
-// ---------- brand kits (~/.ai-video-studio/brands.json, managed by studio/routes/51_brands.mjs) ----------
+// ---------- brand kits (~/.ai-affiliate-studio/brands.json, managed by studio/routes/51_brands.mjs) ----------
 export function loadBrand(id) {
   if (!id) return null;
   if (typeof id === 'object') return id;

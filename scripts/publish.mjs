@@ -7,12 +7,12 @@
 //   node scripts/publish.mjs schedule-update <id> [--when …] [--title …] [--caption …] [--hashtags …] [--privacy …] [--state planned]
 //   node scripts/publish.mjs schedule-remove <id>
 //   node scripts/publish.mjs schedule-auto --files a.mp4,b.mp4 --platforms youtube,tiktok [--from ISO]   (rải vào các khung giờ đăng)
-//   node scripts/publish.mjs run-due [--json]          (A1 queue / Studio gọi mỗi phút; tự giữ khoá ~/.ai-video-studio/publish.lock)
+//   node scripts/publish.mjs run-due [--json]          (A1 queue / Studio gọi mỗi phút; tự giữ khoá ~/.ai-affiliate-studio/publish.lock)
 //   node scripts/publish.mjs youtube-client <client_secret.json>   (lưu OAuth client "Desktop app" của bạn)
 //   node scripts/publish.mjs youtube-auth | youtube-status | youtube-disconnect
 //   node scripts/publish.mjs youtube-upload <mp4> --meta <json|file.json> [--schedule ISO] [--thumb cover.jpg]
 //
-// Dữ liệu ở AVS_HOME (mặc định ~/.ai-video-studio, quyền 600): schedule.json, youtube_client.json, youtube_token.json,
+// Dữ liệu ở AVS_HOME (mặc định ~/.ai-affiliate-studio, quyền 600): schedule.json, youtube_client.json, youtube_token.json,
 // youtube_quota.json, uploads/<phiên>.json (để tải tiếp khi bị ngắt). Không bao giờ in token.
 // Biến môi trường cho kiểm thử: AVS_NOW (giờ giả), AVS_DRY_OPEN=1 (ghi log thay vì mở trình duyệt / thông báo),
 // AVS_YT_API, AVS_YT_TOKEN_URI, AVS_YT_AUTH_URI, AVS_YT_REVOKE_URI (máy chủ giả), AVS_YT_CHUNK (byte), AVS_YT_BACKOFF_MS.
@@ -26,7 +26,7 @@ import { spawn, execFile } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { openPath, revealPath, notifyDesktop, copyText } from './platform.mjs';
 
-export const HOME = () => process.env.AVS_HOME || path.join(os.homedir(), '.ai-video-studio');
+export const HOME = () => process.env.AVS_HOME || path.join(os.homedir(), '.ai-affiliate-studio');
 const F = name => path.join(HOME(), name);
 export const PLATFORMS = {
   youtube: { name: 'YouTube', url: 'https://www.youtube.com/upload' },
@@ -77,7 +77,7 @@ const STATES = ['planned', 'uploading', 'done', 'reminded', 'error'];
 const cleanTags = h => (Array.isArray(h) ? h : String(h || '').split(/[\s,]+/)).map(t => String(t).trim().replace(/^#+/, '').replace(/\s+/g, '')).filter(Boolean).map(t => '#' + t);
 function normItem(o, base = {}) {
   const it = { ...base };
-  for (const k of ['project', 'file', 'title', 'caption', 'privacy', 'thumb', 'categoryId', 'first_comment']) if (o[k] != null) it[k] = String(o[k]);
+  for (const k of ['project', 'file', 'title', 'caption', 'privacy', 'thumb', 'categoryId', 'first_comment', 'attach']) if (o[k] != null) it[k] = String(o[k]);
   if (o.platform != null) { if (!PLATFORMS[o.platform]) throw new Error(`Nền tảng lạ: ${o.platform} (youtube|tiktok|facebook|instagram|zalo)`); it.platform = o.platform; }
   if (o.when != null) it.when = parseWhen(o.when).toISOString();
   if (o.hashtags != null) it.hashtags = cleanTags(o.hashtags);
@@ -132,7 +132,8 @@ export function captionsFor(file, platform) {
   if (proj) {
     const pub = readJSON(path.join(proj, 'publish/publish.json'), null);
     const d = pub?.platforms?.[platform] || pub?.platforms?.youtube || pub?.platforms?.tiktok || Object.values(pub?.platforms || {})[0];
-    if (d) Object.assign(out, { title: d.title || '', caption: d.caption || '', hashtags: cleanTags(d.hashtags || []), first_comment: d.first_comment || '' });
+    if (d) Object.assign(out, { title: d.title || '', caption: d.caption || '', hashtags: cleanTags(d.hashtags || []), first_comment: d.first_comment || '',
+      attach: d.attach ? `${d.attach.name}${d.attach.product_id ? ` (ID ${d.attach.product_id})` : ''}` : '' }); // attach: affiliate kit (aff_kit.mjs)
     if (!out.title) out.title = readJSON(path.join(proj, 'timeline.json'), {}).title || '';
   }
   if (!out.title) out.title = path.basename(file).replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
@@ -158,7 +159,7 @@ export function autoSchedule(videos, platforms, { from } = {}) {
     if (!t) throw new Error('Không tìm được khung giờ trống trong 120 ngày tới');
     for (const p of platforms) {
       const cap = { ...captionsFor(file, p), ...(v.meta?.[p] || {}) };
-      added.push(addItem({ file, platform: p, when: t, title: cap.title, caption: cap.caption, hashtags: cap.hashtags, first_comment: cap.first_comment, project: v.project }));
+      added.push(addItem({ file, platform: p, when: t, title: cap.title, caption: cap.caption, hashtags: cap.hashtags, first_comment: cap.first_comment, attach: cap.attach, project: v.project }));
       taken.add(`${p}|${t.getTime()}`);
     }
     si++;
@@ -207,7 +208,7 @@ export async function runDue({ log = console.log } = {}) {
     const s = loadSchedule(), set = s.settings, at = it => new Date(it.when).getTime();
     // 1) nhắc trước 10 phút (không phải YouTube)
     for (const it of s.items.filter(x => x.state === 'planned' && x.platform !== 'youtube' && !x.preReminded && at(x) > T && at(x) - set.remindMin * 60e3 <= T)) {
-      notify('AI Video Studio · sắp đăng', `${Math.round((at(it) - T) / 60e3)} phút nữa: đăng “${(it.title || path.basename(it.file)).slice(0, 60)}” lên ${PLATFORMS[it.platform].name}`);
+      notify('AI Affiliate Studio · sắp đăng', `${Math.round((at(it) - T) / 60e3)} phút nữa: đăng “${(it.title || path.basename(it.file)).slice(0, 60)}” lên ${PLATFORMS[it.platform].name}`);
       mutate(s2 => { const x = s2.items.find(y => y.id === it.id); if (x) x.preReminded = true; });
       res.preReminded.push(it.id);
     }
@@ -222,15 +223,31 @@ export async function runDue({ log = console.log } = {}) {
         const pub = at(it) > T.getTime() + 15 * 60e3 && (it.privacy || set.privacy) === 'public' ? new Date(at(it)).toISOString() : null;
         const r = await youtubeUpload(it.file, { title: it.title, caption: it.caption, hashtags: it.hashtags, privacy: it.privacy || set.privacy, madeForKids: it.madeForKids ?? set.madeForKids, categoryId: it.categoryId || set.categoryId, thumbnail: it.thumb }, { schedule: pub });
         patch({ state: 'done', url: r.url, videoId: r.id, publishAt: pub, warnings: r.warnings, error: null });
-        notify('AI Video Studio · YouTube', `Đã tải lên “${(it.title || '').slice(0, 50)}”${pub ? ' — YouTube sẽ công khai lúc ' + fmtVN(pub) : ''}`);
+        notify('AI Affiliate Studio · YouTube', `Đã tải lên “${(it.title || '').slice(0, 50)}”${pub ? ' — YouTube sẽ công khai lúc ' + fmtVN(pub) : ''}`);
         res.uploaded.push({ id: it.id, url: r.url, publishAt: pub });
       } catch (e) {
         const msg = e.message || String(e), retry = !e.fatal && (it.attempts || 0) + 1 < 5;
         // retryable → back to "planned" with the error shown; quota errors wait an hour, others 5 minutes
         patch({ state: retry ? 'planned' : 'error', error: msg + (retry ? ' (sẽ tự thử lại)' : ''), retryAfter: retry ? new Date(T.getTime() + (e.code === 'quota' ? 60 : 5) * 60e3).toISOString() : null });
-        notify('AI Video Studio · lỗi YouTube', msg.slice(0, 120));
+        notify('AI Affiliate Studio · lỗi YouTube', msg.slice(0, 120));
         res.errors.push({ id: it.id, error: msg });
         if (e.code === 'reconnect' || e.code === 'quota') break;
+      }
+    }
+    // 2b) Facebook: Trang đã kết nối (scripts/fb_page.mjs) → tự đăng Reels + bình luận đầu chứa link affiliate
+    const { fbConnected, fbPostReel } = await import('./fb_page.mjs');
+    if (fbConnected()) for (const it of loadSchedule().items.filter(x => x.platform === 'facebook' && x.state === 'planned' && at(x) <= T && !(Date.parse(x.retryAfter) > T))) {
+      const patch = o => mutate(s2 => { const x = s2.items.find(y => y.id === it.id); if (x) Object.assign(x, o, { updated: now().toISOString() }); });
+      patch({ state: 'uploading', attempts: (it.attempts || 0) + 1 });
+      try {
+        const r = await fbPostReel(it.file, { caption: postText(it), comment: it.first_comment || '' });
+        patch({ state: 'done', url: r.url, videoId: r.id, error: r.commented || !it.first_comment ? null : 'Đăng xong nhưng chưa bình luận được link: ' + r.commentError });
+        notify('AI Affiliate Studio · Facebook', `Đã đăng “${(it.title || '').slice(0, 50)}”${r.commented ? ' + bình luận link' : ''}`);
+        res.uploaded.push({ id: it.id, url: r.url });
+      } catch (e) {
+        const retry = !e.reconnect && (it.attempts || 0) + 1 < 3;
+        patch({ state: retry ? 'planned' : 'error', error: e.message + (retry ? ' (sẽ tự thử lại)' : ''), retryAfter: retry ? new Date(T.getTime() + 10 * 60e3).toISOString() : null });
+        res.errors.push({ id: it.id, error: e.message }); if (e.reconnect) break;
       }
     }
     // 3) nền tảng khác: đến giờ → thông báo + mở trang đăng + hiện file + chép caption (mỗi lượt 1 mục để clipboard không bị đè)
@@ -243,7 +260,7 @@ export async function runDue({ log = console.log } = {}) {
 async function remind(it, T, note, more = 0) {
   const P = PLATFORMS[it.platform], text = postText(it);
   const copied = await pbcopy(text);
-  notify(`AI Video Studio · đến giờ đăng ${P.name}`, `“${(it.title || path.basename(it.file)).slice(0, 50)}” — caption đã chép, dán vào ô mô tả.${more ? ` Còn ${more} mục nữa.` : ''}`);
+  notify(`AI Affiliate Studio · đến giờ đăng ${P.name}`, `“${(it.title || path.basename(it.file)).slice(0, 50)}” — caption đã chép, dán vào ô mô tả.${it.attach ? ` Gắn giỏ: ${it.attach}.` : ''}${it.first_comment ? ' Nhớ bình luận link đầu tiên.' : ''}${more ? ` Còn ${more} mục nữa.` : ''}`);
   openURL(P.url); if (fs.existsSync(it.file)) reveal(it.file);
   mutate(s => { const x = s.items.find(y => y.id === it.id); if (x) Object.assign(x, { state: 'reminded', remindedAt: T.toISOString(), url: P.url, error: note || null, copied }); });
 }

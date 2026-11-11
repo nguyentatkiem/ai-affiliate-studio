@@ -1,4 +1,4 @@
-// Lịch đăng + Kết nối YouTube (scripts/publish.mjs làm phần việc thật). Lịch dùng chung cho mọi dự án: ~/.ai-video-studio/schedule.json.
+// Lịch đăng + Kết nối YouTube (scripts/publish.mjs làm phần việc thật). Lịch dùng chung cho mọi dự án: ~/.ai-affiliate-studio/schedule.json.
 // Có hẹn giờ dự phòng: mỗi 60 s chạy `publish.mjs run-due` (khoá chung publish.lock với hàng đợi Tự lái, nên không bao giờ chạy trùng).
 // Tắt bằng AVS_NO_SCHEDULE_TIMER=1. Spec: references/publish-schedule.md
 import fs from 'node:fs';

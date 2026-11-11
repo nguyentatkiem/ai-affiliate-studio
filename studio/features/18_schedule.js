@@ -293,7 +293,7 @@
   function ytWizard() {
     const y = S.v.youtube;
     Studio.modal(`<div class="sc-form"><h3><i class="ti ti-brand-youtube" style="color:#E5484D"></i> Kết nối YouTube (tự tải video lên kênh của bạn)</h3>
-      <div class="sc-note info">Dùng <b>OAuth client của chính bạn</b> — miễn phí, không chia sẻ mật khẩu. Token chỉ lưu trên máy này (<code>~/.ai-video-studio/youtube_token.json</code>, quyền 600). Làm 1 lần, mất ~10 phút.</div>
+      <div class="sc-note info">Dùng <b>OAuth client của chính bạn</b> — miễn phí, không chia sẻ mật khẩu. Token chỉ lưu trên máy này (<code>~/.ai-affiliate-studio/youtube_token.json</code>, quyền 600). Làm 1 lần, mất ~10 phút.</div>
       <ol class="sc-steps">
         <li>Mở <a href="https://console.cloud.google.com/projectcreate" target="_blank">Google Cloud Console → Tạo dự án</a> (tên tuỳ ý, VD “AI Video Studio”).</li>
         <li>Vào <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">YouTube Data API v3</a> → bấm <b>Enable (Bật)</b>.</li>
