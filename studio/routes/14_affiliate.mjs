@@ -5,6 +5,9 @@
 //   POST /api/aff/media/upload?p=&name= (body = file) · /api/aff/media/remove {id, file}
 //   POST /api/aff/run {product, profile?, angles?, hooks?, platforms?, dur?, angle?, voice?, schedule?, out?, restart?}
 //   POST /api/aff/open {dir} · /api/aff/reveal {path} · /api/aff/post {project, platform} · /api/aff/stats/import?name= · /api/aff/stats/set {key, …}
+//   Trang chủ + tính năng sâu: GET /api/aff/home · /insights · /scores · /winners · /report · /broll · /plan?profile= · /track · /videos
+//   POST /api/aff/clone {key, n} · /plan/run {profile, quota} · /reviews {id, text} · /reviews/upload?p=&name= · /reply {product, comments[], platform}
+//        /broll/upload?tag=&name= · /broll/remove {tag, file} · /derive {id} · /posted {key, url} · /track {params, caption_code} · /report/save
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -12,7 +15,17 @@ import { AVS_HOME, addItem, loadQueue } from '../../scripts/queue.mjs';
 import { loadProducts, getProduct, upsertProduct, deleteProduct, addMediaStream, removeMedia, downloadMedia, fetchProductPage, importSheet, productDir, CATEGORIES, discountPct, fmtPrice } from '../../scripts/products.mjs';
 import { ANGLES, HOOKS } from '../../scripts/aff_script.mjs';
 import { ANGLE_BLOCK } from '../../scripts/aff_compliance.mjs';
-import { VOICES } from '../../scripts/aff_video.mjs';
+import { allVoices } from '../../scripts/aff_voice.mjs';
+import { scoreProducts, winners, insights, weeklyReport, todayPlan } from '../../scripts/aff_insights.mjs';
+import { runPlan, loadPlan } from '../../scripts/aff_plan.mjs';
+import { readReviews, mineReviews, applyMined } from '../../scripts/aff_reviews.mjs';
+import { draftReplies, INTENTS } from '../../scripts/aff_reply.mjs';
+import { deriveProduct, listBroll, addBroll, removeBroll, BROLL_TAGS, brollCount } from '../../scripts/aff_media.mjs';
+import { trackSettings, saveTrackSettings } from '../../scripts/aff_track.mjs';
+import { markPosted } from '../../scripts/aff_stats.mjs';
+import { loadStore } from '../../scripts/profile.mjs';
+import { fbStatus } from '../../scripts/fb_page.mjs';
+import { loadSchedule } from '../../scripts/publish.mjs';
 import { STEPS } from '../../scripts/autopilot_aff.mjs';
 import { report, learnedPrefs, importStats, setStats, loadVideos } from '../../scripts/aff_stats.mjs';
 import { PLATFORMS as PUB } from '../../scripts/publish.mjs';
@@ -37,12 +50,45 @@ function jobs() {
   }).sort((a, b) => String(b.started).localeCompare(String(a.started)));
 }
 
+// Trang chủ affiliate: số liệu chính, việc nên làm hôm nay, video thắng, sản phẩm điểm cao, video mới, việc đang chạy, việc cần thiết lập
+function home(profile) {
+  const st = loadStore(), prof = profile || st.default, R = report(), wk = (() => { try { return weeklyReport({ save: false }); } catch { return null; } })();
+  const js = jobs(), q = loadQueue().items;
+  const recent = js.flatMap(j => j.videos.filter(v => v.mp4).map(v => ({ ...v, job: j.dir, product: j.product, finished: j.finished }))).slice(0, 12);
+  const prods = loadProducts().products, vids = loadVideos().videos;
+  const sched = (() => { try { return loadSchedule().items.filter(x => x.state === 'planned').sort((a, b) => a.when.localeCompare(b.when)).slice(0, 6); } catch { return []; } })();
+  const setup = [
+    { id: 'product', done: prods.length > 0, label: 'Thêm sản phẩm đầu tiên (dán link TikTok Shop / Shopee)' },
+    { id: 'media', done: prods.some(p => p.media.length), label: 'Thêm ảnh/video thật cho sản phẩm' },
+    { id: 'video', done: vids.length > 0, label: 'Làm loạt video đầu tiên bằng Tự lái' },
+    { id: 'stats', done: vids.some(v => v.stats), label: 'Nhập số liệu đơn hàng để Tự lái học' },
+    { id: 'broll', done: brollCount() > 0, label: 'Quay vài cảnh dùng chung cho Kho b-roll của tôi (tuỳ chọn)' },
+    { id: 'fb', done: fbStatus().connected, label: 'Kết nối Trang Facebook để tự đăng Reels (tuỳ chọn)' },
+  ];
+  return {
+    profile: prof, profiles: st.profiles.map(p => ({ id: p.id, name: p.name, handle: p.handle || '', aff_daily: p.aff_daily ?? 6, aff_auto_plan: !!p.aff_auto_plan, plan: loadPlan(p.id) ? { videos: loadPlan(p.id).videos, items: (loadPlan(p.id).items || []).length, error: loadPlan(p.id).error || null } : null })),
+    kpi: { products: prods.length, videos: vids.length, with_stats: R.videos, views: R.total.views, orders: R.total.orders, opk: R.total.opk, gmv: R.total.gmv, commission: wk?.total.commission || 0, week: wk?.week || null, made_week: wk?.made || 0 },
+    plan: todayPlan({ profile: prof }), ran: loadPlan(prof), winners: winners().slice(0, 6), scores: scoreProducts({ profile: prof }).slice(0, 6), notes: [...insights().notes, ...learnedPrefs().notes].slice(0, 5),
+    recent, running: q.filter(x => ['aff', 'afflive', 'autopilot'].includes(x.kind) && ['queued', 'running'].includes(x.state)).map(x => ({ id: x.id, kind: x.kind, title: x.title, state: x.state, progress: x.progress, step: x.step })),
+    schedule: sched.map(x => ({ id: x.id, when: x.when, platform: x.platform, title: x.title, channel: x.channel || '' })), setup, voices: allVoices().filter(v => v.clone).map(v => v.name),
+  };
+}
+
 export default ctx => async (req, res, p, u) => {
   if (!p.startsWith('/api/aff/')) return false;
   const J = (o, c) => (ctx.json(res, o, c), true);
   try {
     if (req.method === 'GET') {
-      if (p === '/api/aff/meta') return J({ angles: ANGLES, hooks: HOOKS, angle_block: ANGLE_BLOCK, categories: CATEGORIES, voices: VOICES, steps: STEPS.map(([id, label]) => ({ id, label })), home: AVS_HOME });
+      if (p === '/api/aff/meta') return J({ angles: ANGLES, hooks: HOOKS, angle_block: ANGLE_BLOCK, categories: CATEGORIES, voices: allVoices(), steps: STEPS.map(([id, label]) => ({ id, label })), home: AVS_HOME, broll_tags: BROLL_TAGS, intents: INTENTS });
+      if (p === '/api/aff/home') return J(home(u.searchParams.get('profile') || undefined));
+      if (p === '/api/aff/insights') return J(insights({ profile: u.searchParams.get('profile') || undefined }));
+      if (p === '/api/aff/scores') return J({ scores: scoreProducts({ profile: u.searchParams.get('profile') || undefined }) });
+      if (p === '/api/aff/winners') return J({ winners: winners() });
+      if (p === '/api/aff/report') { const r = weeklyReport({ save: false }); return J({ md: r.md, week: r.week, total: r.total }); }
+      if (p === '/api/aff/broll') return J({ tags: BROLL_TAGS, broll: listBroll() });
+      if (p === '/api/aff/plan') { const prof = u.searchParams.get('profile') || loadStore().default; return J({ plan: todayPlan({ profile: prof, quota: u.searchParams.get('quota') || undefined }), ran: loadPlan(prof) }); }
+      if (p === '/api/aff/track') return J(trackSettings());
+      if (p === '/api/aff/videos') return J({ videos: loadVideos().videos.slice(-200).reverse() });
       if (p === '/api/aff/products') return J({ products: loadProducts().products.map(x => ({ ...x, discount: discountPct(x), price_txt: fmtPrice(x.price), old_txt: fmtPrice(x.old_price) })) });
       if (p === '/api/aff/file') { // product media + job outputs (thumbs, covers, mp4) — only inside AVS_HOME
         const f = u.searchParams.get('path') ? inside(AVS_HOME, u.searchParams.get('path')) : inside(productDir(u.searchParams.get('p') || '_'), path.join(productDir(u.searchParams.get('p') || '_'), u.searchParams.get('f') || ''));
@@ -65,9 +111,17 @@ export default ctx => async (req, res, p, u) => {
       const dir = path.join(AVS_HOME, 'affiliate/inbox'); fs.mkdirSync(dir, { recursive: true });
       const dst = path.join(dir, `${Date.now().toString(36)}_${name}`); await saveBody(req, dst);
       const platform = u.searchParams.get('platform') === 'facebook' ? 'facebook' : 'tiktok', live = u.searchParams.get('mode') === 'live';
-      const it = live ? addItem({ kind: 'afflive', input: dst, opts: { product: prod.id, platform, n: +(u.searchParams.get('n') || 5) }, source: 'ui' })
+      const multi = u.searchParams.get('products'); // live bán nhiều sản phẩm: "all" hoặc "a,b,c"
+      const it = live ? addItem({ kind: 'afflive', input: dst, opts: { ...(multi ? { products: multi } : { product: prod.id }), platform, n: +(u.searchParams.get('n') || (multi ? 8 : 5)) }, source: 'ui', title: `Livestream · ${multi ? 'nhiều sản phẩm' : prod.name}` })
         : addItem({ kind: 'autopilot', input: dst, opts: { product: prod.id, platform, profile: u.searchParams.get('profile') || undefined }, source: 'ui' });
       return J({ ok: true, item: it });
+    }
+    if (p === '/api/aff/broll/upload') return J({ ok: true, clip: await addBroll(u.searchParams.get('tag'), u.searchParams.get('name'), req) });
+    if (p === '/api/aff/reviews/upload') {
+      const prod = getProduct(u.searchParams.get('p')); if (!prod) return J({ error: 'không thấy sản phẩm' }, 404);
+      const name = path.basename(u.searchParams.get('name') || 'reviews.txt'); if (!/\.(csv|xlsx|txt)$/i.test(name)) return J({ error: 'Chỉ nhận .txt, .csv, .xlsx' }, 400);
+      const dst = path.join(os.tmpdir(), `affrv_${Date.now()}_${name.replace(/[^\w.\-]+/g, '_')}`); await saveBody(req, dst);
+      try { const lines = readReviews(dst), m = await mineReviews(prod, lines); applyMined(prod, m, { count: lines.length }); return J({ ok: true, count: lines.length, mined: m }); } finally { fs.rmSync(dst, { force: true }); }
     }
     if (p === '/api/aff/import' || p === '/api/aff/stats/import') {
       const name = path.basename(u.searchParams.get('name') || 'bang.csv'); if (!/\.(csv|xlsx)$/i.test(name)) return J({ error: 'Chỉ nhận file .csv hoặc .xlsx' }, 400);
@@ -94,7 +148,7 @@ export default ctx => async (req, res, p, u) => {
       if (Array.isArray(b.platforms) && b.platforms.length) opts.platforms = b.platforms.join(',');
       if (Array.isArray(b.angle) && b.angle.length) opts.angle = b.angle.join(',');
       if (b.out) opts.out = path.resolve(String(b.out).replace(/^~(?=[\\/])/, os.homedir()));
-      const it = addItem({ kind: 'aff', input: prod.id, opts, source: 'ui' }); it.title = prod.name;
+      const it = addItem({ kind: 'aff', input: prod.id, opts, source: 'ui', title: (b.clone ? 'Nhân bản: ' : '') + prod.name });
       return J({ ok: true, item: it });
     }
     if (p === '/api/aff/open') {
@@ -115,6 +169,28 @@ export default ctx => async (req, res, p, u) => {
       return J({ ok: true, copied, kit });
     }
     if (p === '/api/aff/copy') return J({ ok: await copyText(String(b.text || '')) });
+    if (p === '/api/aff/clone') { // nhân bản video thắng
+      const v = loadVideos().videos.find(x => x.key === b.key); if (!v) return J({ error: 'không thấy video' }, 404);
+      if (v.source === 'live' || v.source === 'clip') return J({ error: 'Chỉ nhân bản được video Tự lái không quay' }, 400);
+      const it = addItem({ kind: 'aff', input: v.product, opts: { clone: v.key, n: Math.min(5, Math.max(1, +b.n || 3)), profile: v.profile || undefined, ...(b.schedule ? { schedule: true } : {}) }, source: 'ui', title: `Nhân bản: ${v.product_name}` });
+      return J({ ok: true, item: it });
+    }
+    if (p === '/api/aff/plan/run') return J({ ok: true, plan: runPlan({ profile: b.profile || loadStore().default, quota: b.quota || undefined, plan: b.plan || undefined }) });
+    if (p === '/api/aff/reviews') {
+      const prod = getProduct(b.id); if (!prod) return J({ error: 'không thấy sản phẩm' }, 404);
+      const lines = readReviews(String(b.text || '')); const m = await mineReviews(prod, lines);
+      return J({ ok: true, count: lines.length, mined: m, product: applyMined(prod, m, { count: lines.length }) });
+    }
+    if (p === '/api/aff/reply') {
+      const prod = getProduct(b.product); if (!prod) return J({ error: 'không thấy sản phẩm' }, 404);
+      const list = Array.isArray(b.comments) ? b.comments : String(b.comments || '').split('\n');
+      return J({ ok: true, replies: await draftReplies(prod, list, { platform: b.platform, profile: b.profile, offline: !!b.offline }) });
+    }
+    if (p === '/api/aff/broll/remove') return J({ ok: removeBroll(b.tag, b.file) });
+    if (p === '/api/aff/derive') { const prod = getProduct(b.id); if (!prod) return J({ error: 'không thấy sản phẩm' }, 404); const r = await deriveProduct(prod); return J({ ok: true, cutouts: r.cutouts.map(f => path.relative(productDir(prod.id), f)), details: r.details.map(f => path.relative(productDir(prod.id), f)) }); }
+    if (p === '/api/aff/posted') return J({ ok: true, video: markPosted(b.key, { url: String(b.url || '').trim(), channel: b.channel }) });
+    if (p === '/api/aff/track') return J({ ok: true, track: saveTrackSettings({ ...(b.params ? { params: b.params } : {}), ...(b.caption_code != null ? { caption_code: !!b.caption_code } : {}) }) });
+    if (p === '/api/aff/report/save') { const r = weeklyReport(); revealPath(r.file); return J({ ok: true, file: r.file }); }
     if (p === '/api/aff/stats/set') return J({ ok: true, video: setStats(b.key, b) });
   } catch (e) { return J({ error: e.message }, 500); }
   return false;

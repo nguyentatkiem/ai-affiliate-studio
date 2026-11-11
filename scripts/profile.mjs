@@ -44,6 +44,14 @@ export const DEFAULT_PROFILE = {
   aff_autoschedule: false,   // tự rải video vào Lịch đăng
   voice: 'auto',             // auto (edge-tts Hoài My nếu có, không thì Linh) | edge:vi-VN-NamMinhNeural | Linh
   persona: '',               // giọng kênh, vd "chị bán hàng vui vẻ, nói nhanh", "review khách quan kiểu dân văn phòng"
+  // Nhiều kênh (mỗi hồ sơ = một kênh TikTok/Facebook) + lịch nội dung tự chạy (scripts/aff_plan.mjs)
+  handle: '',                // tên kênh, vd @chimeoreview
+  aff_categories: [],        // ngành hàng của kênh ([] = mọi ngành) — kế hoạch chỉ chọn sản phẩm trong các ngành này
+  aff_slots: [],             // khung giờ đăng riêng của kênh, vd ["11:30","20:00"] ([] = khung chung của Lịch đăng)
+  aff_daily: 6,              // mục tiêu video/ngày cho kế hoạch
+  aff_auto_plan: false,      // mỗi sáng tự lập kế hoạch + đưa vào hàng đợi (cần Studio hoặc LaunchAgent đang chạy)
+  aff_plan_hour: 7,          // giờ chạy kế hoạch (giờ Việt Nam)
+  aff_own_broll: true,       // chèn cảnh tự quay từ Kho b-roll của tôi
 };
 const STEPS_DENS = ['off', 'thua', 'vua', 'day', 'ratday'];
 const STEPS_SOUND = ['off', 'nhe', 'vua', 'phongphu'];

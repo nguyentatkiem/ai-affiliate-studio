@@ -29,6 +29,7 @@ export const EMPTY = {
   usp: [], pains: [], audience: '', specs: [],
   claims_ok: [], claims_ban: [],  // điều được phép nói / cấm nói thêm (ngoài luật chung theo ngành)
   voucher: '', deal_until: '', notes: '', media: [], created: '', updated: '',
+  reviews: null, // aff_reviews.mjs: {quotes, praises, objections, faqs, words, count, mined_at} — lời khách thật
 };
 
 const slug = s => String(s || 'san-pham').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'san-pham';

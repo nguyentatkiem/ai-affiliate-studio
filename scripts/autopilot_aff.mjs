@@ -12,12 +12,14 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { AVS_HOME, getProfile } from './profile.mjs';
 import { getProduct, discountPct, fmtPrice } from './products.mjs';
-import { writeScripts, ANGLES } from './aff_script.mjs';
+import { writeScripts, hookVariants, ANGLES } from './aff_script.mjs';
 import { issuesText } from './aff_compliance.mjs';
 import { buildAffVideo, DEFAULT_VOICE } from './aff_video.mjs';
 import { exportProject, sh } from './highlights.mjs';
 import { buildKit, writeKit } from './aff_kit.mjs';
-import { learnedPrefs, registerVideo } from './aff_stats.mjs';
+import { learnedPrefs, registerVideo, loadVideos, patchVideo, fingerprint, dupOnOtherChannel } from './aff_stats.mjs';
+import { codeFor } from './aff_track.mjs';
+import { check3s, complianceLog } from './aff_qc.mjs';
 import { notify } from './notify.mjs';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,6 +28,7 @@ export const STEPS = [
   ['script', 'AI viết kịch bản (góc bán × hook)', 10, true],
   ['compliance', 'Kiểm tra chính sách TikTok Shop / Facebook', 2, true],
   ['build', 'Dựng video (giọng đọc, hình, phụ đề, nhạc)', 38, true],
+  ['qc', 'Kiểm 3 giây đầu + nhật ký tuân thủ', 2],
   ['export', 'Xuất MP4 + ảnh bìa', 40, true],
   ['kit', 'Bộ đăng (caption, gắn giỏ, link bình luận)', 3],
   ['schedule', 'Xếp lịch đăng', 2],
@@ -44,7 +47,17 @@ function forPlatform(sc, platform, p) {
   for (const b of s.beats) b.say = String(b.say).replace(/bấm (vào )?giỏ hàng/gi, 'xem link ở bình luận');
   return s;
 }
-export const jobDirFor = (p, o) => path.join(AVS_HOME, 'affiliate/jobs', `${p.id}-${crypto.createHash('md5').update(JSON.stringify([o.angles, o.hooks, o.platforms, o.dur, o.only || null])).digest('hex').slice(0, 6)}`);
+export const jobDirFor = (p, o) => path.join(AVS_HOME, 'affiliate/jobs', `${p.id}-${o.clone ? 'nhan-' : ''}${crypto.createHash('md5').update(JSON.stringify([o.angles, o.hooks, o.platforms, o.dur, o.only || null, o.profile || null, ...(o.clone ? [o.clone, o.n] : [])])).digest('hex').slice(0, 6)}`);
+const MOODS = ['hype', 'happy', 'corporate_upbeat', 'tech', 'inspire', 'lofi'];
+// nhân bản video thắng: tìm video gốc trong sổ + kịch bản của nó
+function cloneSource(key) {
+  const v = loadVideos().videos.find(x => x.key === key); if (!v) throw new Error(`Không thấy video ${key} trong sổ`);
+  const vdir = v.project || path.dirname(path.dirname(v.file)), job = path.dirname(path.dirname(vdir));
+  const doc = rd(path.join(job, 'scripts.json')); if (!doc) throw new Error('Video gốc không có kịch bản (chỉ nhân bản được video Tự lái không quay)');
+  const vk = key.split('/').pop(), sc = doc.scripts.find(s => s.angle === v.angle) || doc.scripts[0];
+  const tl = rd(path.join(vdir, 'timeline.json'));
+  return { v, sc, hook: Math.max(0, +(/-[hc](\d+)-/.exec(vk)?.[1] || 1) - 1), mood: tl?.audio?.music?.[0]?.mood, voice: tl?._aff?.voice, doc };
+}
 
 export async function autopilotAff(id, opts = {}) {
   const t00 = Date.now();
@@ -56,7 +69,10 @@ export async function autopilotAff(id, opts = {}) {
     platforms: (opts.platforms ? String(opts.platforms).split(',') : prof.aff_platforms?.length ? prof.aff_platforms : ['tiktok']).filter(x => PLATFORM_NAMES[x]),
     only: opts.angle ? String(opts.angle).split(',') : null, voice: opts.voice || prof.voice || DEFAULT_VOICE, persona: prof.persona || '',
     strict: prof.aff_strict !== false, schedule: opts.schedule ?? !!prof.aff_autoschedule, offline: !!opts.offline, quality: prof.quality || '1080',
+    clone: opts.clone || null, n: +(opts.n || 3), profile: prof.id, broll: prof.aff_own_broll !== false,
   };
+  let src = null;
+  if (o.clone) { src = cloneSource(o.clone); o.platforms = [src.v.platform]; o.angles = 1; o.hooks = o.n; o.only = [src.v.angle]; if (src.voice && !opts.voice) o.voice = src.voice; }
   if (!o.platforms.length) o.platforms = ['tiktok'];
   const dir = opts.project ? path.resolve(opts.project) : jobDirFor(p0, o);
   const SF = path.join(dir, '.aff/state.json');
@@ -88,6 +104,11 @@ export async function autopilotAff(id, opts = {}) {
       return `${p.name} · ${p.media.length} media${p.price ? ' · ' + fmtPrice(p.price) : ''}${discountPct(p) ? ` (−${discountPct(p)}%)` : ''}${warn.length ? ' · ⚠ ' + warn.join('; ') : ''}`;
     },
     async script() {
+      if (o.clone) {
+        const sc = await hookVariants(p, src.sc, src.hook, o.n, { offline: o.offline, say: m => say(.5, m) });
+        doc = { product: p.id, source: 'clone', clone: o.clone, angles: [sc.angle], dur: src.doc.dur, scripts: [sc] }; wr(scriptsFile, doc);
+        return `${sc.hooks.length} hook mới cho video thắng (${ANGLES[sc.angle]?.name || sc.angle}), giữ thân bài`;
+      }
       doc = await writeScripts(p, { angles: o.angles, hooks: o.hooks, dur: o.dur, platform: o.platforms[0], persona: o.persona, only: o.only, offline: o.offline,
         prefer: learned.angles, hookPrefer: learned.hooks, extra: prof.extra || '', say: m => say(.5, m) });
       wr(scriptsFile, doc);
@@ -106,17 +127,32 @@ export async function autopilotAff(id, opts = {}) {
     async build() {
       doc = doc || rd(scriptsFile);
       const jobs = [];
-      for (const [si, sc] of doc.scripts.entries()) for (let h = 0; h < sc.hooks.length; h++) for (const pl of o.platforms) jobs.push({ si, h, pl, key: `${sc.angle}-h${h + 1}-${pl}` });
+      for (const [si, sc] of doc.scripts.entries()) for (let h = 0; h < sc.hooks.length; h++) for (const pl of o.platforms) jobs.push({ si, h, pl, key: `${sc.angle}-${o.clone ? 'c' : 'h'}${h + 1}-${pl}` });
       for (const [i, j] of jobs.entries()) {
         const done = st.videos.find(v => v.key === j.key && v.built);
         if (done && fs.existsSync(path.join(done.dir, 'timeline.json'))) continue;
         const vdir = path.join(dir, 'videos', j.key), sc = forPlatform(doc.scripts[j.si], j.pl, p);
         say(i / jobs.length, `${i + 1}/${jobs.length} ${ANGLES[sc.angle]?.name || sc.angle} · hook ${j.h + 1} · ${PLATFORM_NAMES[j.pl]}`);
-        const r = await buildAffVideo({ product: p, script: sc, hook: j.h, platform: j.pl, dir: vdir, voice: o.voice, dur: o.dur, say: (k, m) => say((i + k) / jobs.length, `${i + 1}/${jobs.length} ${m}`) });
-        st.videos = st.videos.filter(v => v.key !== j.key).concat({ key: j.key, angle: sc.angle, hook: j.h, hook_type: sc.hooks[j.h].type, platform: j.pl, dir: vdir, duration: r.duration, hookEnd: r.hookEnd, built: true });
+        // clone variants: other opening order, music and pace than the winner (same body + voice)
+        const variant = o.clone ? { seed: j.h + 1, mood: MOODS.filter(m => m !== src.mood)[j.h % 5], rate: [195, 205, 186][j.h % 3] } : { seed: j.h };
+        const r = await buildAffVideo({ product: p, script: sc, hook: j.h, platform: j.pl, dir: vdir, voice: o.voice, dur: o.dur, variant, ownBroll: o.broll, say: (k, m) => say((i + k) / jobs.length, `${i + 1}/${jobs.length} ${m}`) });
+        st.videos = st.videos.filter(v => v.key !== j.key).concat({ key: j.key, angle: sc.angle, hook: j.h, hook_type: sc.hooks[j.h].type, platform: j.pl, dir: vdir, duration: r.duration, hookEnd: r.hookEnd, built: true,
+          voice: r.voice, human: r.human, price_hook: r.price_hook, heroes: r.heroes, details: r.details, fp: fingerprint([sc.hooks[j.h].say, ...sc.beats.map(b => b.say)], p.media.map(m => m.file)) });
         save();
       }
       return `${jobs.length} video`;
+    },
+    qc() {
+      const out = [];
+      for (const v of st.videos.filter(v => v.built)) {
+        const r = check3s(v.dir, { fix: true }); v.qc3 = r.score;
+        const log = complianceLog(v.dir, p, { platform: v.platform }); v.qc_warn = log.warnings;
+        out.push(r.score);
+      }
+      save();
+      const warn = st.videos.flatMap(v => v.qc_warn || []);
+      if (warn.length) st.warnings = [...new Set([...(st.warnings || []), ...warn])];
+      return `3 giây đầu: ${out.length ? Math.round(out.reduce((a, b) => a + b, 0) / out.length) : '—'}/100 trung bình${warn.length ? ` · ⚠ ${[...new Set(warn)].length} cảnh báo` : ' · nhật ký tuân thủ ổn'}`;
     },
     async export() {
       const todo = st.videos.filter(v => v.built);
@@ -134,7 +170,8 @@ export async function autopilotAff(id, opts = {}) {
     kit() {
       for (const v of st.videos.filter(v => v.mp4)) {
         const tl = rd(path.join(v.dir, 'timeline.json'));
-        const kit = buildKit(tl, p, v.platform, { aiVoice: true }); writeKit(v.dir, kit);
+        v.code = codeFor(`${path.basename(dir)}/${v.key}`);
+        const kit = buildKit(tl, p, v.platform, { aiVoice: true, code: v.code }); writeKit(v.dir, kit);
         v.kit = path.join(v.dir, 'publish', `kit_${v.platform}.txt`); v.caption = kit.caption; v.hashtags = kit.hashtags;
       }
       save();
@@ -146,9 +183,18 @@ export async function autopilotAff(id, opts = {}) {
       const added = [];
       // interleave angles so the same angle/hook does not go out twice in a row
       const vids = [...st.videos.filter(v => v.mp4 && !v.scheduled)].sort((a, b) => a.hook - b.hook || a.angle.localeCompare(b.angle));
-      for (const v of vids) { const r = autoSchedule([{ file: v.mp4, project: v.dir }], [v.platform]); v.scheduled = r.map(x => x.when); added.push(...r); }
+      const skipped = [];
+      for (const v of vids) {
+        const key = `${path.basename(dir)}/${v.key}`;
+        registerVideo({ key, file: v.mp4, product: p.id, product_name: p.name, angle: v.angle, hook_type: v.hook_type, platform: v.platform, profile: prof.id, project: v.dir, fp: v.fp });
+        const dup = dupOnOtherChannel(key, prof.id); // không đăng nội dung gần như giống hệt lên 2 kênh
+        if (dup) { skipped.push(`${v.key} giống ${Math.round(dup.sim * 100)}% video kênh "${dup.profile}"`); v.dup = dup; continue; }
+        const r = autoSchedule([{ file: v.mp4, project: v.dir }], [v.platform], { channel: prof.id, slots: prof.aff_slots });
+        v.scheduled = r.map(x => x.when); added.push(...r); patchVideo(key, { scheduled_at: r[0]?.when });
+      }
+      if (skipped.length) st.warnings = [...new Set([...(st.warnings || []), ...skipped.map(x => 'Không xếp lịch: ' + x)])];
       save();
-      return added.length ? `${added.length} lượt đăng, từ ${new Date(added[0].when).toLocaleString('vi-VN')}` : 'không có video mới';
+      return (added.length ? `${added.length} lượt đăng, từ ${new Date(added[0].when).toLocaleString('vi-VN')}` : 'không có video mới') + (skipped.length ? ` · bỏ ${skipped.length} video trùng kênh khác` : '');
     },
     deliver() {
       const res = {
@@ -156,7 +202,10 @@ export async function autopilotAff(id, opts = {}) {
         videos: st.videos.map(v => ({ key: v.key, angle: v.angle, angle_name: ANGLES[v.angle]?.name, hook: v.hook + 1, hook_type: v.hook_type, platform: v.platform, duration: v.duration, mp4: v.mp4, cover: v.cover, kit: v.kit, project: v.dir, scheduled: v.scheduled || null })),
         steps: Object.fromEntries(STEPS.map(([k, label]) => [k, { label, ...(st.steps[k] || {}) }])), seconds: Math.round((Date.now() - t00) / 1000), finished: new Date().toISOString(),
       };
-      for (const v of st.videos.filter(v => v.mp4)) registerVideo({ key: `${path.basename(dir)}/${v.key}`, file: v.mp4, product: p.id, product_name: p.name, angle: v.angle, hook_type: v.hook_type, platform: v.platform, title: rd(path.join(v.dir, 'timeline.json'))?.title, caption: v.caption, profile: prof.id });
+      for (const v of st.videos.filter(v => v.mp4)) registerVideo({ key: `${path.basename(dir)}/${v.key}`, code: v.code, file: v.mp4, project: v.dir, product: p.id, product_name: p.name, angle: v.angle, hook_type: v.hook_type, platform: v.platform,
+        title: rd(path.join(v.dir, 'timeline.json'))?.title, caption: v.caption, profile: prof.id, dur: v.duration, voice: v.voice, source: 'ai', human: !!v.human, price_hook: !!v.price_hook, fp: v.fp, qc3: v.qc3,
+        ...(o.clone ? { variant_of: o.clone } : {}), ...(v.scheduled?.[0] ? { scheduled_at: v.scheduled[0] } : {}) });
+      if (o.clone) patchVideo(o.clone, { cloned_at: new Date().toISOString() });
       const files = [];
       if (st.out) {
         const out = path.join(st.out, p.name.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60)); fs.mkdirSync(out, { recursive: true });
@@ -202,7 +251,7 @@ async function main() {
   if (a.includes('--steps')) { for (const [k, l, , r] of STEPS) console.log(`${k.padEnd(11)} ${l}${r ? ' (bắt buộc)' : ''}`); return; }
   const id = a[0] && !a[0].startsWith('--') ? a[0] : null;
   if (!id) throw new Error('cách dùng: node scripts/autopilot_aff.mjs <product-id> [--angles 3] [--hooks 2] [--platforms tiktok,facebook] [--out dir] [--schedule]');
-  const r = await autopilotAff(id, { profile: opt('--profile'), angles: opt('--angles'), hooks: opt('--hooks'), platforms: opt('--platforms'), dur: opt('--dur'), angle: opt('--angle'),
+  const r = await autopilotAff(id, { clone: opt('--clone'), n: opt('--n'), profile: opt('--profile'), angles: opt('--angles'), hooks: opt('--hooks'), platforms: opt('--platforms'), dur: opt('--dur'), angle: opt('--angle'),
     voice: opt('--voice'), out: opt('--out'), schedule: a.includes('--schedule') ? true : undefined, offline: a.includes('--offline'), restart: a.includes('--restart'), from: opt('--from'), project: opt('--project') });
   console.log('@@ 1.000 Xong');
   console.log('RESULT ' + JSON.stringify({ job: r.job, outputs: r.outputs, videos: r.summary?.videos?.length || 0 }));

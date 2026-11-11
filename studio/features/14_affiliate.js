@@ -85,6 +85,7 @@
             <div class="mt">${esc(S.meta?.categories?.[p.category] || '')}${last ? ` · ${last.videos.length} video` : ''}</div></div>
           <div class="ac"><button class="primary go" data-run="${esc(p.id)}"><i class="ti ti-rocket"></i>Làm video</button>
             <button class="icon" title="Thêm ảnh/video" data-med="${esc(p.id)}"><i class="ti ti-photo-plus"></i></button>
+            <button class="icon" title="Công cụ: đào review, tách nền, trả lời bình luận" data-tools="${esc(p.id)}"><i class="ti ti-dots"></i></button>
             <button class="icon" title="Sửa" data-edit="${esc(p.id)}"><i class="ti ti-pencil"></i></button>
             <button class="icon" title="Xoá" data-del="${esc(p.id)}"><i class="ti ti-trash"></i></button></div></div>`;
       }).join('')}
@@ -97,6 +98,7 @@
     $('#af-csv').onclick = async () => { const [f] = await pickFile('.csv,.xlsx'); if (!f) return; toast('Đang nhập…'); const r = await upload(`/api/aff/import?name=${encodeURIComponent(f.name)}`, f); toast(r.error || `Đã nhập ${r.added} sản phẩm`); refresh(true); };
     B.querySelectorAll('[data-run]').forEach(b => (b.onclick = () => runDialog(S.products.find(p => p.id === b.dataset.run))));
     B.querySelectorAll('[data-edit]').forEach(b => (b.onclick = () => editProduct(S.products.find(p => p.id === b.dataset.edit))));
+    B.querySelectorAll('[data-tools]').forEach(b => (b.onclick = () => productTools(S.products.find(p => p.id === b.dataset.tools))));
     B.querySelectorAll('[data-del]').forEach(b => (b.onclick = async () => { if (!confirm('Xoá sản phẩm này cùng ảnh/video của nó? (Video đã làm vẫn giữ)')) return; await api('/api/aff/product/delete', { id: b.dataset.del }); refresh(true); }));
     B.querySelectorAll('[data-med]').forEach(b => (b.onclick = async () => { const fs = await pickFile('image/*,video/*', true); await addMedia(b.dataset.med, fs); }));
     B.querySelectorAll('.af-p').forEach(c => {
@@ -190,7 +192,8 @@
       <div class="af-chips" style="margin-bottom:10px"><label><input type="radio" name="r-src" value="ai" checked>Không quay — AI dựng từ ảnh/video sản phẩm</label>
         <label><input type="radio" name="r-src" value="clip">Clip tôi quay (review, unbox)</label><label><input type="radio" name="r-src" value="live">Livestream dài → nhiều clip</label></div>
       <div id="r-clip" hidden><p class="help">Chọn file video. Tự lái sẽ nhận giọng, cắt lỗi nói, phụ đề, gắn thẻ giá khi bạn nhắc giá, nhãn giỏ hàng ở cuối, soát lời nói theo luật, xuất MP4 + bộ đăng.</p>
-        <div class="af-tools"><button id="r-file"><i class="ti ti-file-upload"></i><span>Chọn video…</span></button></div></div>
+        <div class="af-tools"><button id="r-file"><i class="ti ti-file-upload"></i><span>Chọn video…</span></button></div>
+        <label id="r-multi-w" hidden style="display:flex;gap:6px;align-items:center;color:var(--tx2);font-size:12px;margin-top:6px"><input type="checkbox" id="r-multi" style="width:auto;margin:0">Live bán NHIỀU sản phẩm — tự nhận đoạn nào nói về sản phẩm nào trong thư viện</label></div>
       <div class="af-form" id="r-ai">
         <div><label>Số góc bán</label><select id="r-ang">${[1, 2, 3, 4, 5].map(n => `<option ${n === (prof.aff_angles || 3) ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
         <div><label>Hook mỗi góc (A/B test)</label><select id="r-hook">${[1, 2, 3].map(n => `<option ${n === (prof.aff_hooks || 2) ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
@@ -209,7 +212,7 @@
     const box = $('#modalbox');
     let clipFile = null;
     const src = () => box.querySelector('[name=r-src]:checked').value;
-    box.querySelectorAll('[name=r-src]').forEach(r => (r.onchange = () => { $('#r-clip').hidden = src() === 'ai'; box.querySelectorAll('#r-ai > div').forEach((d, i) => { if (i < 4 || i === 5 || i >= 7) d.hidden = src() !== 'ai'; }); sum(); }));
+    box.querySelectorAll('[name=r-src]').forEach(r => (r.onchange = () => { $('#r-clip').hidden = src() === 'ai'; $('#r-multi-w').hidden = src() !== 'live'; box.querySelectorAll('#r-ai > div').forEach((d, i) => { if (i < 4 || i === 5 || i >= 7) d.hidden = src() !== 'ai'; }); sum(); }));
     $('#r-file').onclick = async () => { const [f] = await pickFile('video/*'); if (f) { clipFile = f; $('#r-file span').textContent = f.name; } };
     const sum = () => { if (src() !== 'ai') { $('#r-sum').textContent = src() === 'live' ? 'Claude chọn ~5 đoạn hay nhất, mỗi đoạn thành 1 clip 9:16 có gắn sản phẩm.' : 'Một video hoàn chỉnh từ clip của bạn, có gắn sản phẩm.'; return; } const n = +$('#r-ang').value * +$('#r-hook').value * Math.max(1, box.querySelectorAll('[data-pl]:checked').length); $('#r-sum').textContent = `Sẽ làm ${n} video (~${Math.max(1, Math.round(n * 1.2))} phút trên máy Mac M-series). Chạy nền, tắt Studio vẫn chạy nếu bật LaunchAgent ở tab Tự lái.`; };
     box.querySelectorAll('select,input').forEach(el => el.addEventListener('change', sum)); sum();
@@ -219,7 +222,7 @@
       if (src() !== 'ai') {
         if (!clipFile) return toast('Chọn file video trước');
         toast('Đang tải video lên…');
-        const r = await upload(`/api/aff/clip?p=${encodeURIComponent(p.id)}&mode=${src()}&platform=${platforms[0]}&profile=${encodeURIComponent($('#r-prof').value)}&name=${encodeURIComponent(clipFile.name)}`, clipFile);
+        const r = await upload(`/api/aff/clip?p=${encodeURIComponent(p.id)}&mode=${src()}&platform=${platforms[0]}&profile=${encodeURIComponent($('#r-prof').value)}&name=${encodeURIComponent(clipFile.name)}${src() === 'live' && $('#r-multi').checked ? '&products=all' : ''}`, clipFile);
         if (r.error) return toast(r.error);
         closeModal(); toast('Đã đưa vào hàng đợi'); return refresh(true);
       }
@@ -231,7 +234,12 @@
   }
 
   // Studio started without a project has no preview frame yet → a full reload builds it around the opened project.
-  const openInEditor = () => (Studio.win ? Studio.reload() : location.reload());
+  const openInEditor = () => {
+    Studio.aff?.hideHome?.();
+    if (Studio.win) return Studio.reload();
+    try { sessionStorage.setItem('afhome-skip', '1'); } catch {}
+    location.reload();
+  };
 
   // ---------- per-video actions ----------
   function videoMenu(dir, key) {
@@ -242,6 +250,9 @@
       <div class="af-menu" style="margin-top:10px">
         ${v.mp4 ? `<button class="primary" data-a="post"><i class="ti ti-send"></i>Đăng ${fb ? 'Facebook' : 'TikTok'}: chép caption, mở trang đăng, hiện file</button>` : ''}
         ${v.kit ? `<button data-a="kit"><i class="ti ti-file-text"></i>Xem bộ đăng (caption, gắn giỏ, bình luận đầu)</button>` : ''}
+        ${v.mp4 ? `<button data-a="posted"><i class="ti ti-link"></i>Đã đăng: dán link video (khớp số liệu chính xác)</button>` : ''}
+        ${v.mp4 && !['live', 'clip'].includes(v.angle) ? `<button data-a="clone"><i class="ti ti-copy-plus"></i>Nhân bản: 3 biến thể (hook mới, nhạc, nhịp khác)</button>` : ''}
+        <button data-a="log"><i class="ti ti-shield-check"></i>Nhật ký tuân thủ + điểm 3 giây đầu</button>
         <button data-a="edit"><i class="ti ti-edit"></i>Mở trong editor để chỉnh</button>
         ${v.mp4 ? `<button data-a="reveal"><i class="ti ti-folder"></i>Hiện file trong Finder</button>` : ''}
       </div><div class="actions"><button onclick="closeModal()">Đóng</button></div>`);
@@ -252,6 +263,9 @@
       if (a === 'kit') { const r = await fetch(pathUrl(v.kit)); modal(`<h3>Bộ đăng</h3><pre style="white-space:pre-wrap;max-height:60vh;overflow:auto;font-size:12px">${esc(await r.text())}</pre><div class="actions"><button onclick="closeModal()">Đóng</button></div>`); }
       if (a === 'edit') { const r = await api('/api/aff/open', { dir: v.project }); if (r.error) return toast(r.error); closeModal(); await openInEditor(); toast('Đã mở video trong editor'); }
       if (a === 'reveal') api('/api/aff/reveal', { path: v.mp4 });
+      if (a === 'posted') postedDialog(`${dir.split('/').pop()}/${v.key}`);
+      if (a === 'clone') { const r = await api('/api/aff/clone', { key: `${dir.split('/').pop()}/${v.key}`, n: 3 }); toast(r.error || 'Đã đưa vào hàng đợi: nhân bản 3 biến thể'); if (!r.error) { closeModal(); refresh(true); } }
+      if (a === 'log') logDialog(v.project);
     }));
   }
   function showKit(k) {
@@ -260,6 +274,68 @@
       ${k.first_comment ? `<p class="help">Bình luận đầu: <button data-copy="${esc(k.first_comment)}">Chép bình luận</button></p>` : ''}
       <div class="actions"><button class="primary" onclick="closeModal()">Xong</button></div>`);
     $('#modalbox').querySelectorAll('[data-copy]').forEach(b => (b.onclick = async () => { await api('/api/aff/copy', { text: b.dataset.copy }); toast('Đã chép'); }));
+  }
+
+  // ---------- đã đăng → link (mã theo dõi chính xác) ----------
+  function postedDialog(key) {
+    modal(`<h3><i class="ti ti-link"></i> Đã đăng video này</h3><p class="help">Dán link bài đăng TikTok/Facebook. File xuất số liệu có cột link hoặc ID video sẽ khớp đúng 100% vào video này, và Tự lái học được giờ đăng.</p>
+      <input id="pd-url" placeholder="https://www.tiktok.com/@kenh/video/74…"><div class="actions"><button onclick="closeModal()">Huỷ</button><button class="primary" id="pd-ok">Lưu</button></div>`);
+    $('#pd-ok').onclick = async () => { const r = await api('/api/aff/posted', { key, url: $('#pd-url').value }); toast(r.error || (r.video?.posted?.id ? 'Đã lưu ID video ' + r.video.posted.id : 'Đã lưu (không đọc được ID từ link)')); if (!r.error) closeModal(); };
+  }
+  async function logDialog(project) {
+    const r = await fetch(pathUrl(project + '/publish/compliance_log.json')); if (!r.ok) return toast('Video này chưa có nhật ký (làm bằng phiên bản cũ)');
+    const L = await r.json(), q = L.first3s;
+    modal(`<h3><i class="ti ti-shield-check"></i> Nhật ký tuân thủ</h3>
+      ${q ? `<div class="af-kpi" style="grid-template-columns:1fr 2fr"><div><b style="color:${q.score >= 80 ? 'var(--ok)' : q.score >= 60 ? 'var(--warn)' : 'var(--bad)'}">${q.score}/100</b><small>3 giây đầu</small></div><div><small>${q.issues.length ? q.issues.map(esc).join('<br>') : 'Không có lỗi'}${q.fixed.length ? `<br><span style="color:var(--ok)">Đã tự sửa: ${q.fixed.map(esc).join(', ')}</span>` : ''}</small></div></div>` : ''}
+      ${L.warnings.length ? `<ul class="af-notes" style="color:var(--warn)">${L.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="help" style="color:var(--ok)">✓ Không có cảnh báo</p>'}
+      <div class="af-sec">Nguồn hình</div>${Object.entries(L.media.reduce((o, m) => ((o[m.note] = (o[m.note] || 0) + 1), o), {})).map(([note, n]) => `<div class="help">• ${esc(note)}${n > 1 ? ` <span class="muted">×${n}</span>` : ''}</div>`).join('')}
+      <div class="af-sec">Nhạc</div>${L.music.map(m => `<div class="help">• ${esc(m.note)}${m.mood ? ` (${esc(m.mood)})` : ''}</div>`).join('') || '<div class="help">Không có nhạc</div>'}
+      <div class="af-sec">Khác</div><div class="help">Nội dung AI: ${L.ai_content ? 'có — bật nhãn "Nội dung do AI tạo"' : 'không'}${L.disclaimer ? `<br>Khuyến cáo: ${esc(L.disclaimer)}` : ''}<br>Soát luật kịch bản: ${L.script_check ? (L.script_check.ok ? '✓ đạt' : 'còn lỗi') : '—'}</div>
+      <div class="actions"><button onclick="closeModal()">Đóng</button></div>`);
+  }
+  // ---------- công cụ sản phẩm: đào review, tách nền + cận cảnh, trả lời bình luận ----------
+  function productTools(p) {
+    const rv = p.reviews;
+    modal(`<h3><i class="ti ti-tools"></i> ${esc(p.name)}</h3><div class="af-menu">
+      <button data-t="reviews"><i class="ti ti-message-star"></i>Đào review khách thật${rv ? ` <small class="muted">(đã đọc ${rv.count || '?'} đánh giá)</small>` : ''}</button>
+      <button data-t="derive"><i class="ti ti-scissors"></i>Tách nền ảnh + tìm cận cảnh chi tiết</button>
+      <button data-t="reply"><i class="ti ti-messages"></i>Soạn trả lời bình luận</button></div>
+      ${rv ? `<div class="af-sec">Khách khen</div><ul class="af-notes">${(rv.praises || []).slice(0, 4).map(x => `<li>${esc(x.text)}${x.quote ? ` <small class="muted">— “${esc(x.quote.slice(0, 70))}”</small>` : ''}</li>`).join('')}</ul>
+        ${(rv.objections || []).length ? `<div class="af-sec">Khách lo ngại</div><ul class="af-notes">${rv.objections.map(x => `<li>${esc(x.text)}</li>`).join('')}</ul>` : ''}` : ''}
+      <div class="actions"><button onclick="closeModal()">Đóng</button></div>`);
+    $('#modalbox').querySelectorAll('[data-t]').forEach(b => (b.onclick = () => ({ reviews: reviewsDialog, derive: deriveRun, reply: replyDialog })[b.dataset.t](p)));
+  }
+  function reviewsDialog(p) {
+    modal(`<h3><i class="ti ti-message-star"></i> Đào review — ${esc(p.name)}</h3>
+      <p class="help">Dán đánh giá/bình luận thật của khách (mỗi dòng một cái), hoặc chọn file CSV/Excel/TXT xuất từ shop. AI rút ra nỗi đau, lời khen, lo ngại, câu hỏi hay gặp <b>kèm trích dẫn</b> → thêm vào điểm nổi bật/vấn đề của sản phẩm, kịch bản sau dùng đúng lời khách.</p>
+      <textarea id="rv-t" style="min-height:160px" placeholder="Dùng 2 tuần thấy da đỡ bóng dầu hẳn&#10;Mùi thơm nhẹ, thấm nhanh, không bết&#10;Có dùng được cho da nhạy cảm không shop?"></textarea>
+      <div class="actions"><button id="rv-file"><i class="ti ti-file-upload"></i>Chọn file…</button><div style="flex:1"></div><button onclick="closeModal()">Huỷ</button><button class="primary" id="rv-go"><i class="ti ti-sparkles"></i>Đào review</button></div>`);
+    const done = r => { if (r.error) return toast(r.error); toast(`Đã đọc ${r.count} đánh giá: +${r.mined.praises.length} lời khen, +${r.mined.pains.length} nỗi đau, ${r.mined.faqs.length} câu hỏi`); refresh(true).then(() => productTools(S.products.find(x => x.id === p.id))); };
+    $('#rv-go').onclick = async () => { const t = $('#rv-t').value.trim(); if (!t) return toast('Dán đánh giá trước'); $('#rv-go').disabled = true; toast('AI đang đọc đánh giá…'); done(await api('/api/aff/reviews', { id: p.id, text: t })); };
+    $('#rv-file').onclick = async () => { const [f] = await pickFile('.csv,.xlsx,.txt'); if (!f) return; toast('AI đang đọc đánh giá…'); done(await upload(`/api/aff/reviews/upload?p=${encodeURIComponent(p.id)}&name=${encodeURIComponent(f.name)}`, f)); };
+  }
+  async function deriveRun(p) {
+    if (!p.media.some(m => m.kind === 'image')) return toast('Sản phẩm chưa có ảnh');
+    toast('Đang tách nền + tìm cận cảnh…'); const r = await api('/api/aff/derive', { id: p.id }); if (r.error) return toast(r.error);
+    modal(`<h3><i class="ti ti-scissors"></i> Ảnh đã xử lý</h3><p class="help">${r.cutouts.length} ảnh tách nền (dùng cho cảnh sản phẩm trên nền màu thương hiệu) · ${r.details.length} cận cảnh chi tiết (thêm cảnh khác nhau từ cùng ảnh). Tự lái dùng tự động.</p>
+      <div class="af-media">${[...r.cutouts, ...r.details].map(f => `<div style="background-image:url('${fileUrl(p.id, f)}');background-size:contain;background-repeat:no-repeat;background-color:#333;width:96px;height:120px"></div>`).join('')}</div>
+      <div class="actions"><button class="primary" onclick="closeModal()">Xong</button></div>`);
+  }
+  function replyDialog(p) {
+    modal(`<h3><i class="ti ti-messages"></i> Trả lời bình luận — ${esc(p.name)}</h3>
+      <p class="help">Dán bình luận dưới video (mỗi dòng một cái). AI phân loại và soạn câu trả lời đúng giá/voucher, đúng giọng kênh, đã soát luật quảng cáo. Bạn chép và trả lời.</p>
+      <textarea id="rp-t" style="min-height:120px" placeholder="Giá bao nhiêu vậy shop?&#10;Xin link với&#10;Da nhạy cảm dùng được không?"></textarea>
+      <div class="af-chips" style="margin-top:8px"><label><input type="radio" name="rp-pl" value="tiktok" checked>TikTok</label><label><input type="radio" name="rp-pl" value="facebook">Facebook</label></div>
+      <div id="rp-out"></div>
+      <div class="actions"><button onclick="closeModal()">Đóng</button><button class="primary" id="rp-go"><i class="ti ti-sparkles"></i>Soạn trả lời</button></div>`);
+    $('#rp-go').onclick = async () => {
+      const t = $('#rp-t').value.trim(); if (!t) return; $('#rp-go').disabled = true; $('#rp-out').innerHTML = '<p class="help">Đang soạn…</p>';
+      const r = await api('/api/aff/reply', { product: p.id, comments: t, platform: $('#modalbox').querySelector('[name=rp-pl]:checked').value }); $('#rp-go').disabled = false;
+      if (r.error) return toast(r.error);
+      const I = S.meta?.intents || {};
+      $('#rp-out').innerHTML = r.replies.map((x, i) => `<div class="af-job"><div class="st" style="white-space:normal">${esc(I[x.intent] || x.intent)} · “${esc(x.comment)}”</div><div style="font-size:12.5px;margin:4px 0">${esc(x.reply)}</div><button data-cp="${i}"><i class="ti ti-copy"></i>Chép</button></div>`).join('');
+      $('#rp-out').querySelectorAll('[data-cp]').forEach(b => (b.onclick = async () => { await api('/api/aff/copy', { text: r.replies[+b.dataset.cp].reply }); toast('Đã chép'); }));
+    };
   }
 
   // ---------- panel: Hiệu quả (stats) ----------
@@ -275,18 +351,39 @@
       <div class="af-kpi"><div><b>${R.videos}</b><small>video có số liệu</small></div><div><b>${n(R.total.orders)}</b><small>đơn · ${n(R.total.views)} view</small></div><div><b>${R.total.opk.toFixed(2)}</b><small>đơn / 1.000 view</small></div></div>
       <div class="af-sec">Tự lái đã học</div>
       ${r.learned.notes.length ? `<ul class="af-notes">${r.learned.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : `<div class="help">Cần ít nhất 5 video có số liệu để bắt đầu học (đang có ${R.videos}).</div>`}
+      <div class="af-tools"><button id="st-rep"><i class="ti ti-report"></i>Báo cáo tuần</button><button id="st-trk"><i class="ti ti-qrcode"></i>Mã theo dõi</button></div>
+      <div class="af-sec">Học sâu <span class="r">chỉ kết luận khi đủ ý nghĩa thống kê</span></div><div id="st-ins" class="help">Đang phân tích…</div>
       <div class="af-sec">Theo góc bán</div>${tb(R.angle, AV())}
       <div class="af-sec">Theo kiểu hook</div>${tb(R.hook, HV)}
       <div class="af-sec">Theo nền tảng</div>${tb(R.platform, { tiktok: 'TikTok', facebook: 'Facebook' })}
       ${r.imports.length ? `<div class="af-sec">Lần nhập gần đây</div>${r.imports.slice(-5).reverse().map(x => `<div class="help">${esc(x.file)} · ${x.matched}/${x.rows} dòng khớp · ${new Date(x.at).toLocaleString('vi-VN')}</div>`).join('')}` : ''}`;
+    api('/api/aff/insights').then(I => {
+      const el = $('#st-ins'); if (!el) return;
+      const lv = { chac: 'var(--ok)', kha: 'var(--warn)', chua: 'var(--tx3)' };
+      el.outerHTML = I.dims.length ? `${I.notes.length ? `<ul class="af-notes">${I.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<div class="help">Chưa nhóm nào khác biệt đủ chắc chắn (mỗi nhóm cần ≥ 1.000 view).</div>'}
+        ${I.dims.filter(d => ['dur', 'hour', 'voice', 'human', 'price_hook', 'profile', 'variant'].includes(d.dim)).map(d => `<div class="af-sec" style="margin-top:8px">${esc(d.name)}</div><table class="af-tb"><tr><th></th><th>video</th><th>view</th><th>đơn/1k</th><th>độ chắc</th></tr>${d.rows.map(x => `<tr><td>${esc(x.key)}</td><td>${x.n}</td><td>${n(x.views)}</td><td>${x.opk.toFixed(2)}</td><td style="color:${lv[x.level]}">${esc(x.label)}</td></tr>`).join('')}</table>`).join('')}` : '<div class="help">Cần số liệu để phân tích.</div>';
+    });
+    $('#st-rep').onclick = async () => { const r = await api('/api/aff/report'); modal(`<h3><i class="ti ti-report"></i> Báo cáo tuần</h3><pre style="max-height:60vh;white-space:pre-wrap;font-size:12px">${esc(r.md)}</pre><div class="actions"><button id="rp-save"><i class="ti ti-device-floppy"></i>Lưu file .md</button><button class="primary" onclick="closeModal()">Đóng</button></div>`); $('#rp-save').onclick = async () => { await api('/api/aff/report/save', {}); toast('Đã lưu báo cáo'); }; };
+    $('#st-trk').onclick = async () => {
+      const t = await api('/api/aff/track');
+      modal(`<h3><i class="ti ti-qrcode"></i> Mã theo dõi từng video</h3><p class="help">Mỗi video có một mã riêng (vd <b>v3k9xa</b>): in cuối caption và gắn vào link affiliate ở bình luận Facebook. Khi nhập file số liệu, dòng nào có mã (hoặc link/ID video đã đăng) được khớp chính xác.</p>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12px"><input type="checkbox" id="tk-cap" style="width:auto;margin:0" ${t.caption_code ? 'checked' : ''}>In mã ở cuối caption, dạng [v3k9xa]</label>
+        <span class="lbl">Tham số gắn mã vào link theo tên miền (đổi nếu trung tâm affiliate của bạn dùng tên khác)</span>
+        ${Object.entries(t.params).map(([d, k]) => `<div class="row2" style="margin:4px 0"><input value="${esc(d)}" disabled><input data-dom="${esc(d)}" value="${esc(k)}"></div>`).join('')}
+        <div class="actions"><button onclick="closeModal()">Huỷ</button><button class="primary" id="tk-ok">Lưu</button></div>`);
+      $('#tk-ok').onclick = async () => { const params = {}; $('#modalbox').querySelectorAll('[data-dom]').forEach(i => (params[i.dataset.dom] = i.value.trim())); await api('/api/aff/track', { params, caption_code: $('#tk-cap').checked }); closeModal(); toast('Đã lưu'); };
+    };
     $('#st-imp').onclick = async () => {
       const [f] = await pickFile('.csv,.xlsx'); if (!f) return;
       const x = await upload(`/api/aff/stats/import?name=${encodeURIComponent(f.name)}`, f);
       if (x.error) return toast(x.error);
-      toast(`Khớp ${x.matched}/${x.rows} dòng`); if (x.unmatched?.length) console.log('Không khớp:', x.unmatched);
+      toast(`Khớp ${x.matched}/${x.rows} dòng${x.exact ? ` (${x.exact} khớp chính xác theo mã/ID)` : ''}`); if (x.unmatched?.length) console.log('Không khớp:', x.unmatched);
       renderStats();
     };
   }
+
+  // shared with the home screen (14_affiliate_home.js)
+  Studio.aff = { S, load, refresh, render, runDialog, editProduct, videoMenu, productTools, reviewsDialog, replyDialog, postedDialog, logDialog, addMedia, upload, pickFile, fileUrl, pathUrl, openInEditor, renderStats };
 
   // ---------- wire up: affiliate panels first in the rail; open "Affiliate" on start ----------
   Studio.addPanel('aff', 'ti-shopping-cart', 'Affiliate', () => { render(); refresh(true); });

@@ -77,7 +77,8 @@ const STATES = ['planned', 'uploading', 'done', 'reminded', 'error'];
 const cleanTags = h => (Array.isArray(h) ? h : String(h || '').split(/[\s,]+/)).map(t => String(t).trim().replace(/^#+/, '').replace(/\s+/g, '')).filter(Boolean).map(t => '#' + t);
 function normItem(o, base = {}) {
   const it = { ...base };
-  for (const k of ['project', 'file', 'title', 'caption', 'privacy', 'thumb', 'categoryId', 'first_comment', 'attach']) if (o[k] != null) it[k] = String(o[k]);
+  for (const k of ['project', 'file', 'title', 'caption', 'privacy', 'thumb', 'categoryId', 'first_comment', 'channel']) if (o[k] != null) it[k] = String(o[k]);
+  if (o.attach != null) it.attach = typeof o.attach === 'object' ? o.attach : String(o.attach);
   if (o.platform != null) { if (!PLATFORMS[o.platform]) throw new Error(`Nền tảng lạ: ${o.platform} (youtube|tiktok|facebook|instagram|zalo)`); it.platform = o.platform; }
   if (o.when != null) it.when = parseWhen(o.when).toISOString();
   if (o.hashtags != null) it.hashtags = cleanTags(o.hashtags);
@@ -141,11 +142,13 @@ export function captionsFor(file, platform) {
 }
 
 // Spread videos over the next free posting slots (one video per platform per slot).
-export function autoSchedule(videos, platforms, { from } = {}) {
+// channel (hồ sơ kênh, affiliate nhiều kênh): mỗi kênh một dãy khung giờ riêng (slots của kênh, mặc định khung chung)
+export function autoSchedule(videos, platforms, { from, channel = '', slots } = {}) {
   platforms = platforms.filter(p => PLATFORMS[p]); if (!platforms.length) throw new Error('Chọn ít nhất 1 nền tảng');
   if (!videos.length) throw new Error('Chọn ít nhất 1 video');
   const s = loadSchedule(), start = from ? parseWhen(from) : now(), minT = start.getTime() + 10 * 60e3;
-  const taken = new Set(s.items.filter(x => x.state !== 'error').map(x => `${x.platform}|${new Date(x.when).getTime()}`));
+  if (Array.isArray(slots) && slots.filter(x => /^\d{1,2}:\d{2}$/.test(x)).length) s.settings = { ...s.settings, slots: slots.filter(x => /^\d{1,2}:\d{2}$/.test(x)) };
+  const taken = new Set(s.items.filter(x => x.state !== 'error').map(x => `${x.channel || ''}|${x.platform}|${new Date(x.when).getTime()}`));
   const day0 = vnDate(start), added = [];
   let di = 0, si = 0;
   const slotAt = (d, k) => { const t = new Date(new Date(`${day0}T00:00:00${TZ_OFF}`).getTime() + d * 864e5); return parseWhen(`${vnDate(t)} ${s.settings.slots[k]}`); };
@@ -153,14 +156,14 @@ export function autoSchedule(videos, platforms, { from } = {}) {
     const file = path.resolve(typeof v === 'string' ? v : v.file);
     let t;
     for (; di < 120; di++, si = 0) {
-      for (; si < s.settings.slots.length; si++) { const c = slotAt(di, si); if (c.getTime() >= minT && platforms.every(p => !taken.has(`${p}|${c.getTime()}`))) { t = c; break; } }
+      for (; si < s.settings.slots.length; si++) { const c = slotAt(di, si); if (c.getTime() >= minT && platforms.every(p => !taken.has(`${channel}|${p}|${c.getTime()}`))) { t = c; break; } }
       if (t) break;
     }
     if (!t) throw new Error('Không tìm được khung giờ trống trong 120 ngày tới');
     for (const p of platforms) {
       const cap = { ...captionsFor(file, p), ...(v.meta?.[p] || {}) };
-      added.push(addItem({ file, platform: p, when: t, title: cap.title, caption: cap.caption, hashtags: cap.hashtags, first_comment: cap.first_comment, attach: cap.attach, project: v.project }));
-      taken.add(`${p}|${t.getTime()}`);
+      added.push(addItem({ file, platform: p, when: t, title: cap.title, caption: cap.caption, hashtags: cap.hashtags, first_comment: cap.first_comment, attach: cap.attach, project: v.project, ...(channel ? { channel } : {}) }));
+      taken.add(`${channel}|${p}|${t.getTime()}`);
     }
     si++;
   }
@@ -244,6 +247,7 @@ export async function runDue({ log = console.log } = {}) {
         patch({ state: 'done', url: r.url, videoId: r.id, error: r.commented || !it.first_comment ? null : 'Đăng xong nhưng chưa bình luận được link: ' + r.commentError });
         notify('AI Affiliate Studio · Facebook', `Đã đăng “${(it.title || '').slice(0, 50)}”${r.commented ? ' + bình luận link' : ''}`);
         res.uploaded.push({ id: it.id, url: r.url });
+        try { const S = await import('./aff_stats.mjs'), v = it.project && S.videoByProject(it.project); if (v) S.markPosted(v.key, { url: r.url, channel: it.channel }); } catch {} // khớp số liệu theo ID video
       } catch (e) {
         const retry = !e.reconnect && (it.attempts || 0) + 1 < 3;
         patch({ state: retry ? 'planned' : 'error', error: e.message + (retry ? ' (sẽ tự thử lại)' : ''), retryAfter: retry ? new Date(T.getTime() + 10 * 60e3).toISOString() : null });

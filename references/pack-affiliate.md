@@ -20,6 +20,7 @@ File: `engine/packs/affiliate.js`. Phụ đề dùng kiểu `review`. Gói này 
 | `aff_cart` | 3–4 s cuối, chốt đơn | `platform:'tiktok'` (mũi tên ↙ chỉ vào giỏ) \| `'facebook'` (nút xanh + mũi tên ↓ "link ở bình luận"), `text`, `price`, `old_price`, `sub` (voucher), `x`, `y`, `hideCaptions` (mặc định true), `keep` |
 | `aff_price` | khi nói giá, hook kiểu con số | `price`, `old_price`, `pct` (huy hiệu −%), `label`, `x`, `y`, `size`, `rotate` |
 | `aff_disclaimer` | khuyến cáo bắt buộc (TPCN) | `text`, `y`, `size` |
+| `aff_hero` | cảnh sản phẩm đã tách nền | `image` (PNG trong suốt), `bg1`, `bg2` (mặc định màu thương hiệu), `tilt`, `y`, `size` (tỉ lệ bề ngang), `sparkle:false`, `keyword`, `sub`, `kw_y` |
 | `aff_countdown` | chỉ khi deal có hạn thật | `label`, `secs` (thời gian còn lại lúc cảnh bắt đầu), `y` |
 
 Gói `affiliate` dùng chung với gói `review`:

@@ -56,11 +56,11 @@ export const KINDS = {
   aff: { name: 'Tự lái affiliate', script: 'autopilot_aff.mjs' },
   afflive: { name: 'Livestream → clip affiliate', script: 'aff_live.mjs' },
 };
-export function addItem({ kind, input, opts = {}, source = 'ui' }) {
+export function addItem({ kind, input, opts = {}, source = 'ui', title }) {
   if (!KINDS[kind]) throw new Error(`Loại việc lạ: ${kind}`);
   if (!input) throw new Error('Thiếu đầu vào');
   const it = { id: crypto.randomBytes(4).toString('hex'), kind, input: String(input), opts, source, state: 'queued', progress: 0, step: 'Đang chờ', created: new Date().toISOString(),
-    started: null, finished: null, outputs: [], error: null, attempt: 0, title: kind === 'topic' ? String(input).slice(0, 60) : path.basename(String(input)) };
+    started: null, finished: null, outputs: [], error: null, attempt: 0, title: title || (kind === 'topic' ? String(input).slice(0, 60) : path.basename(String(input))) };
   mutate(q => q.items.push(it));
   return it;
 }
@@ -82,8 +82,8 @@ function argsFor(it) {
   else if (k === 'topic') { A.push(it.input, '--out', o.out || path.join(AVS_HOME, 'autopilot/topics', it.id)); /* fresh folder per item: topic_video nests into an existing one */ for (const f of ['dur', 'voice', 'orient']) if (o[f] != null) A.push('--' + f, String(o[f])); }
   else if (k === 'variants') { A.push(it.input, '--n', String(o.n || 3)); if (o.kind) A.push('--kind', o.kind); }
   else if (k === 'publish') { A.push(o.action || 'youtube-upload', it.input); if (o.meta) A.push('--meta', o.meta); if (o.schedule) A.push('--schedule', o.schedule); }
-  else if (k === 'afflive') { A.push(it.input); for (const f of ['product', 'n', 'platform', 'out']) if (o[f] != null && o[f] !== '') A.push('--' + f, String(o[f])); }
-  else if (k === 'aff') { A.push(it.input); for (const f of ['profile', 'angles', 'hooks', 'platforms', 'dur', 'angle', 'voice', 'out']) if (o[f] != null && o[f] !== '') A.push('--' + f, String(o[f])); if (o.schedule) A.push('--schedule'); if (o.restart) A.push('--restart'); }
+  else if (k === 'afflive') { A.push(it.input); for (const f of ['product', 'products', 'n', 'platform', 'out']) if (o[f] != null && o[f] !== '') A.push('--' + f, String(o[f])); }
+  else if (k === 'aff') { A.push(it.input); for (const f of ['profile', 'angles', 'hooks', 'platforms', 'dur', 'angle', 'voice', 'out', 'clone', 'n']) if (o[f] != null && o[f] !== '') A.push('--' + f, String(o[f])); if (o.schedule) A.push('--schedule'); if (o.restart) A.push('--restart'); }
   if (Array.isArray(o.args)) A.push(...o.args.map(String));
   return A;
 }
@@ -132,7 +132,7 @@ export class Runner {
         const next = loadQueue().items.find(x => x.state === 'queued');
         if (next) this.runItem(next); else if (!this.daemon && Date.now() - this.idleSince > 1500) { this.stop(); this.onIdle?.(); }
       }
-      if (this.daemon && Date.now() - this.lastDue > 60000) { this.lastDue = Date.now(); this.runDue(); }
+      if (this.daemon && Date.now() - this.lastDue > 60000) { this.lastDue = Date.now(); this.runDue(); import('./aff_plan.mjs').then(m => m.dueAutoPlans()).catch(e => this.log('kế hoạch affiliate:', e.message)); }
     } finally { this.busy = false; }
   }
   runDue() {

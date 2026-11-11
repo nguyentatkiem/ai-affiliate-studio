@@ -9,6 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { AVS_HOME } from './profile.mjs';
 import { parseSheet } from './batch.mjs';
+import { codeFor, findCode, videoIdOf } from './aff_track.mjs';
 
 const FILE = path.join(AVS_HOME, 'affiliate/videos.json');
 const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
@@ -18,12 +19,38 @@ function writeAtomic(f, o) { fs.mkdirSync(path.dirname(f), { recursive: true });
 export function loadVideos() { try { const s = JSON.parse(fs.readFileSync(FILE, 'utf8')); if (Array.isArray(s.videos)) return s; } catch {} return { version: 1, videos: [], imports: [] }; }
 const saveVideos = s => writeAtomic(FILE, s);
 
+// v: {key, file, product, product_name, angle, hook_type, platform, title, caption, profile, project?, dur?, voice?, source?, human?, price_hook?, fp?, variant_of?}
 export function registerVideo(v) {
   const s = loadVideos(), old = s.videos.find(x => x.key === v.key);
-  if (old) Object.assign(old, { ...v, stats: old.stats, created: old.created });
-  else s.videos.push({ ...v, created: new Date().toISOString(), stats: null });
+  const code = v.code || old?.code || codeFor(v.key);
+  if (old) Object.assign(old, { ...v, code, stats: old.stats, history: old.history, posted: old.posted, created: old.created });
+  else s.videos.push({ ...v, code, created: new Date().toISOString(), stats: null });
   saveVideos(s);
+  return code;
 }
+export const videoByProject = dir => loadVideos().videos.find(v => v.project && path.resolve(v.project) === path.resolve(dir)) || null;
+// đăng xong: dán link bài → ID video (khớp số liệu chính xác) + giờ đăng (học khung giờ)
+export function markPosted(key, { url = '', at, channel } = {}) {
+  const s = loadVideos(), v = s.videos.find(x => x.key === key); if (!v) throw new Error('không thấy video ' + key);
+  v.posted = { ...(v.posted || {}), at: at || v.posted?.at || new Date().toISOString(), ...(url ? { url, id: videoIdOf(url) } : {}), ...(channel ? { channel } : {}) };
+  saveVideos(s); return v;
+}
+// dấu vân tay nội dung (lời đọc + hình) để chặn đăng trùng giữa các kênh
+export const fingerprint = (texts, media = []) => [...new Set([...norm(texts.join(' ')).split(' ').filter(w => w.length > 1), ...media.map(m => 'm:' + path.basename(String(m)))])].slice(0, 400);
+export function fpSim(a = [], b = []) { if (!a.length || !b.length) return 0; const B = new Set(b); return a.filter(x => B.has(x)).length / Math.min(a.length, b.length); }
+// video giống ≥ th (mặc định 80%) đã/đang đăng ở KÊNH KHÁC trong 30 ngày
+export function dupOnOtherChannel(key, channel, { th = .8, days = 30 } = {}) {
+  const s = loadVideos(), v = s.videos.find(x => x.key === key); if (!v?.fp) return null;
+  const since = Date.now() - days * 864e5;
+  let best = null;
+  for (const o of s.videos) {
+    if (o.key === key || !o.fp || (o.profile || '') === (channel || '')) continue;
+    if (new Date(o.posted?.at || o.scheduled_at || o.created).getTime() < since) continue;
+    const sm = fpSim(v.fp, o.fp); if (sm >= th && (!best || sm > best.sim)) best = { key: o.key, profile: o.profile, sim: Math.round(sm * 100) / 100 };
+  }
+  return best;
+}
+export function patchVideo(key, o) { const s = loadVideos(), v = s.videos.find(x => x.key === key); if (!v) return null; Object.assign(v, o); saveVideos(s); return v; }
 
 const COLS = { // most specific first: "lượt nhấp sản phẩm" is clicks, not the product name
   text: ['tieu de video', 'video title', 'mo ta video', 'mo ta', 'description', 'caption', 'noi dung', 'ten video', 'title', 'video'],
@@ -51,11 +78,17 @@ function sim(a, b) {
 export function importStats(file, { platform } = {}) {
   const { columns, rows } = parseSheet(file), m = mapCols(columns), s = loadVideos();
   if (!m.views && !m.orders) throw new Error(`Không thấy cột lượt xem / đơn hàng. Các cột có: ${columns.join(', ')}`);
-  let matched = 0; const unmatched = [], taken = new Set();
+  let matched = 0, exact = 0; const unmatched = [], taken = new Set();
+  const codes = new Map(s.videos.map(v => [v.code || codeFor(v.key), v])), ids = new Map(s.videos.filter(v => v.posted?.id).map(v => [v.posted.id, v]));
   for (const r of rows) {
     const text = [m.text && r[m.text], m.file && r[m.file]].filter(Boolean).join(' '), prod = m.product ? norm(r[m.product]) : '';
-    let best = null, bs = 0;
-    for (const v of s.videos) {
+    const cells = Object.values(r).map(String).join(' ');
+    // 1) exact: tracking code in caption/sub_id column, or the posted video ID / link
+    const c = findCode(cells, codes), vid = Object.values(r).map(videoIdOf).find(x => x && ids.has(x));
+    let best = (c && codes.get(c)) || (vid && ids.get(vid)) || null, bs = best ? 2 : 0;
+    if (best && taken.has(best.key)) { best = null; bs = 0; }
+    if (best) exact++;
+    else for (const v of s.videos) {
       if ((platform && v.platform !== platform) || taken.has(v.key)) continue; // one row per video in a file
       let sc = Math.max(sim(text, v.caption), sim(text, v.title), m.file && r[m.file] && path.basename(v.file) === path.basename(r[m.file]) ? 1 : 0);
       if (prod && v.product_name && sim(prod, v.product_name) < .4) sc *= .5;
@@ -63,17 +96,26 @@ export function importStats(file, { platform } = {}) {
     }
     if (!best || bs < .55) { unmatched.push(text.slice(0, 80) || JSON.stringify(r).slice(0, 80)); continue; }
     taken.add(best.key);
-    best.stats = { views: num(r[m.views]), clicks: num(r[m.clicks]), orders: num(r[m.orders]), gmv: num(r[m.gmv]), commission: num(r[m.commission]), updated: new Date().toISOString(), from: path.basename(file) };
+    best.stats = { views: num(r[m.views]), clicks: num(r[m.clicks]), orders: num(r[m.orders]), gmv: num(r[m.gmv]), commission: num(r[m.commission]), updated: new Date().toISOString(), from: path.basename(file), exact: bs >= 2 };
+    snapshot(best);
     matched++;
   }
-  s.imports = [...(s.imports || []), { file: path.basename(file), at: new Date().toISOString(), rows: rows.length, matched, map: m }].slice(-30);
+  s.imports = [...(s.imports || []), { file: path.basename(file), at: new Date().toISOString(), rows: rows.length, matched, exact, map: m }].slice(-30);
   saveVideos(s);
-  return { rows: rows.length, matched, unmatched: unmatched.slice(0, 20), map: m };
+  return { rows: rows.length, matched, exact, unmatched: unmatched.slice(0, 20), map: m };
+}
+// cumulative numbers over time → weekly deltas (aff_insights.weeklyReport)
+function snapshot(v) {
+  const h = v.history || (v.history = []), st = v.stats, day = st.updated.slice(0, 10);
+  const row = { at: st.updated, views: st.views || 0, orders: st.orders || 0, gmv: st.gmv || 0, commission: st.commission || 0 };
+  if (h.length && h[h.length - 1].at.slice(0, 10) === day) h[h.length - 1] = row; else h.push(row);
+  if (h.length > 60) h.splice(0, h.length - 60);
 }
 export function setStats(key, st) {
   const s = loadVideos(), v = s.videos.find(x => x.key === key); if (!v) throw new Error('không thấy video ' + key);
-  v.stats = { ...(v.stats || {}), ...Object.fromEntries(Object.entries(st).map(([k, x]) => [k, num(x)])), updated: new Date().toISOString(), from: 'tay' };
-  saveVideos(s); return v;
+  const keep = ['views', 'clicks', 'orders', 'gmv', 'commission'];
+  v.stats = { ...(v.stats || {}), ...Object.fromEntries(Object.entries(st).filter(([k, x]) => keep.includes(k) && x != null && x !== '').map(([k, x]) => [k, num(x)])), updated: new Date().toISOString(), from: 'tay', exact: true };
+  snapshot(v); saveVideos(s); return v;
 }
 
 // Groups by angle / hook type / platform: orders per 1,000 views (main), CTR to product, GMV per 1,000 views.
@@ -88,8 +130,8 @@ export function report({ profile } = {}) {
   return { videos: vids.length, total: { ...tot, opk: tot.views ? tot.orders / tot.views * 1000 : 0 }, angle: group('angle'), hook: group('hook_type'), platform: group('platform'), product: group('product') };
 }
 
-const ANGLE_VI = { 'noi-dau': 'Nỗi đau → giải pháp', 'top-ly-do': '3 lý do', deal: 'Săn deal', unbox: 'Mở hộp', pov: 'POV', 'review-that': 'Review thật', 'dung-mua-neu': 'Đừng mua nếu…', 'huong-dan': 'Cách dùng', 'truoc-sau': 'Trước/sau' };
-const HOOK_VI = { 'cau-hoi': 'câu hỏi', 'gay-soc': 'gây bất ngờ', 'con-so': 'con số', 'canh-bao': 'cảnh báo', pov: 'POV', 'loi-ich': 'lợi ích' };
+export const ANGLE_VI = { 'noi-dau': 'Nỗi đau → giải pháp', 'top-ly-do': '3 lý do', deal: 'Săn deal', unbox: 'Mở hộp', pov: 'POV', 'review-that': 'Review thật', 'dung-mua-neu': 'Đừng mua nếu…', 'huong-dan': 'Cách dùng', 'truoc-sau': 'Trước/sau' };
+export const HOOK_VI = { 'cau-hoi': 'câu hỏi', 'gay-soc': 'gây bất ngờ', 'con-so': 'con số', 'canh-bao': 'cảnh báo', pov: 'POV', 'loi-ich': 'lợi ích' };
 // Rules (simple, explainable): need ≥ 5 videos with stats; a group counts with ≥ 2 videos; groups at or above the overall rate go first.
 export function learnedPrefs(profile) {
   const r = report({ profile }), out = { angles: [], hooks: [], notes: [], n: r.videos };

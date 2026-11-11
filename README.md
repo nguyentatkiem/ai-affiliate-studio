@@ -25,6 +25,13 @@
    - Lịch đăng. Có tự đăng Reels lên Trang Facebook.
 5. **Học từ đơn hàng**: nhập file hiệu suất video, Tự lái biết góc bán và hook nào ra đơn để ưu tiên lần sau.
 
+**Bản 2 — tính năng sâu** (chi tiết: [references/affiliate.md §7](references/affiliate.md)):
+- **Trang chủ affiliate** khi mở app: dán link là làm video, hoa hồng/đơn, *Hôm nay làm gì*, video thắng, sắp đăng, nhiều kênh.
+- **Nhân bản video thắng** thành biến thể mới; **mã theo dõi riêng từng video** để khớp số liệu chính xác.
+- **Chấm điểm sản phẩm** theo hoa hồng kỳ vọng; **lịch tự chạy** mỗi sáng theo mục tiêu video/ngày của từng kênh, chặn đăng trùng giữa các kênh.
+- **Đào review khách thật**, **trả lời bình luận**, **giọng nhân bản** của chính bạn, **tách nền** + **cận cảnh** ảnh sản phẩm, **kho b-roll tự quay**.
+- **Chấm 3 giây đầu** trước khi xuất, **nhật ký tuân thủ** từng video, **livestream nhiều sản phẩm**, **học sâu có độ chắc chắn** + báo cáo tuần.
+
 Studio có thêm hai chế độ:
 - **Clip tự quay**: review, unbox.
 - **Livestream dài → nhiều clip**.

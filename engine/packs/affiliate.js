@@ -87,12 +87,28 @@
         <div style="font-family:${c.disp};font-weight:900;font-size:30px;color:#fff;text-shadow:${st(3)};margin-bottom:12px">${esc(String(s.label || 'DEAL KẾT THÚC SAU').toUpperCase())}</div>
         <div style="font-family:${c.disp};font-weight:900;font-size:56px;line-height:1.1;display:inline-flex;gap:10px;align-items:center;color:#fff">${cell(hh)}:${cell(mm)}:${cell(ss)}</div></div>` };
     },
+
+    // Ảnh sản phẩm ĐÃ TÁCH NỀN đặt trên nền màu thương hiệu: quầng sáng, bóng đổ dưới chân, xoay nhẹ, lơ lửng.  { image (PNG trong suốt), bg1, bg2, tilt, y, size, sparkle }
+    aff_hero(s, t, lt) {
+      const [W, H] = DIMS(), c = C(s), o = fadeIO(t, s.t0, s.t1, .12, .15), k = clamp(E.outBack(prog(t, s.t0, .5), 1.6), 0, 1.15);
+      const b1 = s.bg1 || c.red, b2 = s.bg2 || '#0d0d10', tilt = (s.tilt ?? -6) * (1 - .35 * Math.sin(lt * 1.3)), fl = Math.sin(lt * 2.2) * 10;
+      const size = (s.size ?? (VERT() ? .78 : .5)) * W, cy = s.y ?? Math.round(H * (VERT() ? .46 : .5)), zoom = 1 + .05 * clamp(lt / Math.max(1, s.t1 - s.t0));
+      const sp = s.sparkle === false ? '' : [0, 1, 2, 3, 4].map(i => { const a = i * 1.26 + lt * .9, r = size * (.48 + .06 * Math.sin(lt * 3 + i)), tw = .5 + .5 * Math.sin(lt * 5 + i * 2);
+        return `<div class="abs" style="left:${(W / 2 + Math.cos(a) * r).toFixed(0)}px;top:${(cy + Math.sin(a) * r * .8).toFixed(0)}px;font-size:${18 + i * 4}px;color:${c.hi};opacity:${(tw * k).toFixed(2)};transform:translate(-50%,-50%) rotate(${(lt * 60 + i * 30).toFixed(0)}deg)">✦</div>`; }).join('');
+      return { front: `<div class="abs"${cidOf(s)} style="inset:0;opacity:${o.toFixed(3)};overflow:hidden;background:radial-gradient(120% 80% at 50% 38%, ${hexA(b1, .95) || b1} 0%, ${b2} 72%)">
+        <div class="abs" style="left:50%;top:${cy}px;width:${(size * 1.15).toFixed(0)}px;height:${(size * 1.15).toFixed(0)}px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side, ${hexA(c.hi, .45)}, transparent)"></div>
+        <div class="abs" style="left:50%;top:${(cy + size * .52).toFixed(0)}px;width:${(size * .8).toFixed(0)}px;height:${(size * .1).toFixed(0)}px;transform:translate(-50%,-50%) scale(${(1 - fl / 120).toFixed(3)});border-radius:50%;background:radial-gradient(closest-side, rgba(0,0,0,.55), transparent)"></div>
+        <img src="${media(s.image, t)}" style="position:absolute;left:50%;top:${(cy + fl).toFixed(1)}px;max-width:${size.toFixed(0)}px;max-height:${(size * 1.1).toFixed(0)}px;transform:translate(-50%,-50%) rotate(${tilt.toFixed(2)}deg) scale(${(k * zoom).toFixed(3)});filter:drop-shadow(0 26px 30px rgba(0,0,0,.5))">
+        ${sp}${s.keyword ? `<div class="abs" style="left:0;right:0;top:${s.kw_y ?? Math.round(H * .2)}px;text-align:center;transform:translateY(-50%)">
+          ${s.sub ? `<div style="font-family:${c.disp};font-weight:800;font-size:30px;color:#fff;text-shadow:${st(3)};margin-bottom:10px;opacity:${clamp(prog(t, s.t0 + .25, .2)).toFixed(3)}">${esc(s.sub)}</div>` : ''}
+          <div style="display:inline-block;font-family:${c.disp};font-weight:900;font-size:${fit(String(s.keyword).toUpperCase(), 76, W - 110, .7)}px;line-height:1.1;color:${c.hi};white-space:nowrap;text-shadow:${st(5)},0 8px 0 #000;transform:rotate(-2deg) scale(${pop(t, s.t0 + .1, .3, 2).toFixed(3)})">${esc(String(s.keyword).toUpperCase())}</div></div>` : ''}</div>`, hideCaptions: s.hideCaptions ?? false };
+    },
   });
 
   const at = (y, size = 100) => ({ x: DIMS()[0] / 2, y: VERT() ? y : Math.round(y * 720 / 1280 + 40), size });
   PACKS.push({
     id: P, name: 'Affiliate giỏ hàng', icon: '🛒',
-    desc: 'Hook chữ to 3 giây đầu, nhãn Bấm giỏ hàng chỉ đúng góc giỏ TikTok (hoặc link ở bình luận Facebook), thẻ giá dán, khuyến cáo bắt buộc, đếm ngược deal',
+    desc: 'Hook chữ to 3 giây đầu, nhãn Bấm giỏ hàng chỉ đúng góc giỏ TikTok (hoặc link ở bình luận Facebook), thẻ giá dán, sản phẩm tách nền trên nền thương hiệu, khuyến cáo bắt buộc, đếm ngược deal',
     caption: 'review',
     items: [
       { type: 'aff_hook', label: 'Hook 3 giây', make: T => ({ type: 'aff_hook', t0: T, t1: T + 2.6, text: 'DA DẦU XEM NGAY', text2: 'Mình đã tìm ra món này' }) },
@@ -100,6 +116,7 @@
       { type: 'aff_cart', label: 'Link ở bình luận (Facebook)', make: T => ({ type: 'aff_cart', t0: T, t1: T + 3.5, platform: 'facebook', text: 'Link ở bình luận đầu', price: '199.000đ' }) },
       { type: 'aff_price', label: 'Thẻ giá dán', make: T => ({ type: 'aff_price', t0: T, t1: T + 3, label: 'Giá hôm nay', price: '199.000đ', old_price: '299.000đ', pct: 33 }) },
       { type: 'aff_disclaimer', label: 'Dải khuyến cáo', make: T => ({ type: 'aff_disclaimer', t0: T, t1: T + 10, text: 'Sản phẩm này không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh.' }) },
+      { type: 'aff_hero', label: 'Sản phẩm tách nền', make: T => ({ type: 'aff_hero', t0: T, t1: T + 3, image: '' }) },
       { type: 'aff_countdown', label: 'Đếm ngược deal', make: T => ({ type: 'aff_countdown', t0: T, t1: T + 3, ...at(460), label: 'Deal kết thúc sau', secs: 7200 }) },
     ],
   });

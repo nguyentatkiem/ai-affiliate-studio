@@ -42,6 +42,9 @@ const facts = p => [
   p.audience && `Khách hàng mục tiêu: ${p.audience}`, p.specs.length && `Thông số: ${p.specs.join('; ')}`,
   p.claims_ok.length && `Được phép nói thêm (đã xác minh): ${p.claims_ok.join('; ')}`, p.claims_ban.length && `TUYỆT ĐỐI KHÔNG nói: ${p.claims_ban.join('; ')}`,
   p.notes && `Mô tả của shop: ${String(p.notes).slice(0, 700)}`,
+  p.reviews?.quotes?.length && `LỜI KHÁCH THẬT (trích đánh giá, ${p.reviews.count || 'nhiều'} đánh giá — được dẫn lại kiểu "khách bảo…", không thêm số liệu): ${p.reviews.quotes.slice(0, 6).map(q => `"${q}"`).join('; ')}`,
+  p.reviews?.objections?.length && `Khách hay lo ngại (nên trả lời thẳng trong kịch bản review): ${p.reviews.objections.map(x => x.text).join('; ')}`,
+  p.reviews?.words?.length && `Cụm từ khách hay dùng (dùng cho lời thoại tự nhiên): ${p.reviews.words.join(', ')}`,
   `Ảnh/video có sẵn: ${p.media.filter(m => m.kind === 'image').length} ảnh, ${p.media.filter(m => m.kind === 'video').length} video`,
 ].filter(Boolean).join('\n');
 
@@ -182,3 +185,29 @@ async function main() {
   console.log(JSON.stringify(r, null, 1));
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(fs.realpathSync(path.resolve(process.argv[1]))).href) main().catch(e => { console.error('LỖI: ' + e.message); process.exit(1); });
+
+// ---------- nhân bản video thắng: giữ thân bài + góc bán, viết N hook MỚI (khác kiểu/khác câu với hook gốc) ----------
+export async function hookVariants(p, sc, srcHook = 0, n = 3, { model = 'sonnet', offline = false, say = () => {} } = {}) {
+  const H = sc.hooks[srcHook] || sc.hooks[0], body = sc.beats.map(b => b.say).join(' ');
+  let hooks = null;
+  if (!offline) {
+    say(`Claude viết ${n} hook mới cho video thắng`);
+    try {
+      const res = await callClaude(`Video affiliate này đang RA ĐƠN TỐT. Giữ nguyên thân bài, viết ${n} HOOK 3 giây đầu MỚI để nhân bản (test tiếp), mỗi hook khác hẳn hook gốc và khác nhau, có thể khác kiểu.
+SẢN PHẨM:\n${facts(p)}\nHOOK GỐC (đang thắng): ${JSON.stringify(H)}\nTHÂN BÀI: ${body}
+Kiểu hook: ${Object.entries(HOOKS).map(([k, v]) => `${k} = ${v}`).join('; ')}.
+Mỗi hook: "type", "say" (≤ 16 từ), "screen" (≤ 24 ký tự), "screen2" (≤ 30 ký tự, có thể rỗng). Giữ tinh thần đã thắng của hook gốc. Cùng luật: không bịa số liệu, không "nhất/100%/cam kết", giá đúng dữ liệu.
+Chỉ trả về JSON: {"hooks":[{"type":"…","say":"…","screen":"…","screen2":"…"}]}`, model);
+      hooks = (parseJson(res).hooks || []).filter(h => h && String(h.say || '').trim() && HOOKS[h.type]).slice(0, n);
+      if (!hooks.length) hooks = null;
+    } catch (e) { say('Claude lỗi, dùng hook dựng sẵn: ' + e.message.slice(0, 100)); }
+  }
+  if (!hooks) {
+    const bank = fallbackScripts(p, [sc.angle in ANGLES ? sc.angle : 'noi-dau'], 4)[0].hooks;
+    hooks = bank.filter(h => h.say !== H.say).slice(0, n);
+    while (hooks.length < n) hooks.push({ ...H, screen2: ['Xem tới cuối nha', 'Nghe mình nói nè', 'Đáng tiền thật'][hooks.length % 3] });
+  }
+  const out = { ...JSON.parse(JSON.stringify(sc)), hooks };
+  const r = checkAll(out, p); out.compliance = { ok: r.ok, issues: r.issues };
+  return out;
+}

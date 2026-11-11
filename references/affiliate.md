@@ -1,4 +1,4 @@
-# Affiliate: Sản phẩm · Tự lái affiliate · Tuân thủ · Bộ đăng · Học từ đơn hàng
+# Affiliate: Sản phẩm · Tự lái affiliate · Tuân thủ · Bộ đăng · Học từ đơn hàng · Tính năng sâu
 
 Làm video affiliate gắn giỏ hàng TikTok Shop và video bán hàng Facebook Reels (link ở bình luận đầu). Đơn vị làm việc là **sản phẩm**: một sản phẩm cho ra nhiều video, gồm nhiều góc bán × nhiều hook × từng nền tảng.
 
@@ -124,8 +124,62 @@ node scripts/aff_stats.mjs set <job>/<video-key> --views 1200 --orders 3
   - Góc có ít nhất 3 video mà chưa ra đơn nào thì bị xếp xuống sau.
   - Kết quả hiện thành câu tiếng Việt trong bảng **Hiệu quả**.
 
-## 7. Giới hạn
+## 7. Tính năng sâu (bản 2)
+
+### Trang chủ affiliate (`studio/features/14_affiliate_home.js`)
+Màn hình mở đầu thay cho trình dựng: ô dán link → thêm sản phẩm → mở hộp thoại làm video; số liệu (hoa hồng ước tính, đơn, đơn/1.000 view, video tuần này);
+**Hôm nay làm gì**; video mới; sản phẩm xếp theo điểm; video thắng; điều đã học; sắp đăng; việc cần thiết lập; chọn **kênh**.
+Nút **Trang chủ** trên thanh trên cùng mở lại, **Mở trình dựng** đóng. Mở một video trong editor → trang tải lại một lần và bỏ qua trang chủ.
+API: `GET /api/aff/home?profile=`.
+
+### Mã theo dõi từng video (`aff_track.mjs`)
+- Mã 6 ký tự cố định theo khoá video (`codeFor(key)`, vd `v1ptqa`): in cuối caption `[v1ptqa]` (tắt được) và gắn vào link affiliate ở bình luận Facebook
+  (`sub_id` cho Shopee, `sub_aff_id` cho Lazada, `utm_content` còn lại — sửa ở `affiliate/track.json` hoặc nút **Mã theo dõi** trong bảng Hiệu quả).
+- **Đã đăng: dán link** (menu video) lưu ID video TikTok/Facebook; Trang Facebook tự đăng thì tự lưu.
+- `importStats` khớp theo thứ tự: mã trong bất kỳ ô nào → ID/link video → độ giống caption. Kết quả trả `exact` = số dòng khớp chắc chắn.
+
+### Bộ não (`aff_insights.mjs`)
+- `scoreProducts()`: hoa hồng kỳ vọng / 1.000 view = tỉ lệ đơn (Bayes: số liệu sản phẩm + mức của ngành/mức chung làm tiên nghiệm) × giá × % hoa hồng;
+  nhân hệ số sẵn sàng (thiếu ảnh/giá/link/điểm nổi bật), bão hoà (đã làm nhiều tuần này), thưởng sản phẩm chưa thử và sản phẩm có video thắng.
+- `winners()`: video có ≥ 300 view, ≥ 2 đơn, **cận dưới Wilson 80%** của đơn/view vượt mức chung.
+- `insights()`: theo độ dài, giờ đăng, giọng, có người thật, giá trong hook, góc bán, kiểu hook, nền tảng, kênh, bản nhân; kiểm định z hai tỉ lệ
+  (≥ 1,96 "chắc chắn 95%", ≥ 1,28 "khá chắc 80%"), nhóm < 1.000 view không kết luận.
+- `weeklyReport()`: chênh lệch 7 ngày từ lịch sử số liệu mỗi video (`history`, mỗi lần nhập một mốc) → `affiliate/reports/<ngày>.md`.
+- `todayPlan()`: ≤ 1/3 mục tiêu là nhân bản video thắng (chưa nhân trong 7 ngày, video Tự lái), còn lại làm mới theo điểm, lọc theo ngành của kênh.
+
+### Nhân bản video thắng
+`autopilot_aff.mjs <id> --clone <video-key> --n 3`: giữ góc bán + thân bài + giọng, Claude viết N hook mới (`hookVariants`), mỗi bản đổi hình mở đầu,
+nhạc và nhịp đọc (`variant: {seed, mood, rate}`), khoá `…-c1-…`, sổ ghi `variant_of`, video gốc ghi `cloned_at`. Thư mục việc `<sp>-nhan-<hash>`.
+
+### Lịch tự chạy + nhiều kênh (`aff_plan.mjs`, `profile.mjs`)
+- Hồ sơ = kênh: `handle`, `persona`, `voice`, `aff_platforms`, `aff_categories`, `aff_slots` (khung giờ riêng), `aff_daily`, `aff_auto_plan`, `aff_plan_hour`, `aff_own_broll`.
+- Runner (`queue.mjs`) mỗi phút gọi `dueAutoPlans()`: kênh bật tự chạy, sau giờ đặt, chưa có kế hoạch hôm nay → đưa việc vào hàng đợi với tự xếp lịch. Thứ Hai kèm báo cáo tuần.
+- `autoSchedule(…, {channel, slots})`: mỗi kênh một dãy khung giờ. Trước khi xếp, `dupOnOtherChannel()` so dấu vân tay nội dung (lời đọc + hình);
+  giống ≥ 80% video kênh khác trong 30 ngày → không xếp, báo cảnh báo.
+
+### Đào review (`aff_reviews.mjs`) và trả lời bình luận (`aff_reply.mjs`)
+- Review dán/tải file → Claude rút nỗi đau, lời khen, lo ngại, câu hỏi hay gặp, cụm từ khách dùng, **kèm trích nguyên văn**. Lời khen qua được luật mới thêm vào điểm nổi bật;
+  `product.reviews` đưa vào lời nhắc kịch bản. Không có Claude: chỉ lưu câu trích, không thêm vào điểm nổi bật.
+- Bình luận → phân loại (giá, link, cách dùng, ship/size, khen, chê, khác) + câu trả lời đúng giá/voucher/giọng kênh, đã soát luật. Chỉ soạn, người dùng chép.
+
+### Hình và giọng (`aff_media.mjs`, `product_media.py`, `aff_voice.mjs`, `voice_clone.py`)
+- Tách nền: nền trơn → loang màu từ mép (PIL, không cần model); nền phức tạp → rembg nếu có. Cảnh **`aff_hero`** đặt PNG lên nền màu thương hiệu.
+- Cận cảnh: cửa sổ có mật độ cạnh cao nhất (chữ trên nhãn, kết cấu), không chồng nhau → ảnh mới xen vào video. Kết quả lưu `products/<id>/derived/`.
+- Kho b-roll của tôi: `affiliate/broll/<nhãn>/` (mở hộp, cầm lên, phản ứng, chỉ tay, gõ điện thoại, dùng thử). Cảnh mở hộp → `mo-hop`, một cảnh giữa → `cam-len`/`dung-thu`, CTA → `chi-tay`.
+- Giọng nhân bản: tự nhận `~/Projects/NGUYEN-TAT-KIEM-VOICE` hoặc khai trong `AVS_HOME/voices.json`; id `clone:…`; nạp model một lần cho cả video; số đổi sang chữ trước khi đọc.
+  Bộ đăng luôn nhắc bật nhãn "Nội dung do AI tạo".
+
+### Kiểm tra trước khi xuất (`aff_qc.mjs`, bước `qc`)
+- 3 giây đầu: sản phẩm có trên hình ở 0,8 s, chữ hook đủ thời gian đọc (~3,3 từ/giây + 0,4 s), chữ hook vào ngay, lời mở ≤ 0,5 s, chữ/thẻ giá trong vùng an toàn → điểm 0–100, tự sửa được thì sửa.
+- Nhật ký tuân thủ `publish/compliance_log.json`: nguồn từng hình, nguồn nhạc (nhạc tự thêm → cảnh báo), nhãn AI, khuyến cáo, kết quả soát luật, **tên hãng khác** bị nhắc.
+
+### Livestream nhiều sản phẩm
+`aff_live.mjs <video> --products a,b,c|all`: lời nói từng đoạn → sản phẩm có nhiều từ tên/thương hiệu (×3) và điểm nổi bật (×1) khớp nhất; không rõ → bỏ đoạn đó (gắn sai giỏ mất uy tín).
+
+## 8. Giới hạn
 - Kịch bản tự nhiên cần Claude Code CLI. Không có CLI thì dùng kịch bản dựng sẵn từ dữ liệu sản phẩm.
 - edge-tts cần mạng. Giọng Linh offline nghe máy hơn.
 - Video không quay chỉ hay khi có ảnh/video thật của sản phẩm. Ảnh PNG nền trong suốt cho kết quả đẹp nhất.
-- Khớp số liệu theo caption có thể sai nếu caption trên sàn bị sửa nhiều. Khi đó dùng `set` để nhập tay.
+- Khớp theo caption có thể sai nếu caption bị sửa nhiều và file xuất không có mã/ID video. Khi đó dán link bài đã đăng hoặc dùng `set` để nhập tay.
+- Tham số `sub_id` của từng trung tâm affiliate chưa kiểm với tài khoản thật: kiểm một link trong trang báo cáo của sàn, sai thì sửa ở **Mã theo dõi**.
+- Giọng nhân bản đọc sai tên tiếng Anh (vd "Serum"): thêm dòng cách đọc vào `tu-doc.txt` của repo giọng.

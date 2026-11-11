@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fmtPrice } from './products.mjs';
+import { trackedLink, trackSettings } from './aff_track.mjs';
 
 export const LIMITS = { tiktok: { caption: 2200, tags: [3, 6] }, facebook: { caption: 2200, tags: [2, 5] } };
 const tagify = h => (Array.isArray(h) ? h : String(h || '').split(/[\s,]+/)).map(t => String(t).trim().replace(/^#+/, '').replace(/\s+/g, '')).filter(Boolean).map(t => '#' + t);
@@ -12,7 +13,7 @@ export function affLink(p, platform) {
   if (platform === 'tiktok') return p.links.tiktok || '';
   return p.links.shopee || p.links.tiktok || p.links.lazada || p.links.other || '';
 }
-export function buildKit(tl, p, platform, { aiVoice = true } = {}) {
+export function buildKit(tl, p, platform, { aiVoice = true, code = '' } = {}) {
   const A = tl._aff || {}, fb = platform === 'facebook', L = LIMITS[platform] || LIMITS.tiktok;
   const other = fb ? /^#(tiktok\w*|fyp|foryou\w*|xuhuong\w*)$/i : /^#(reels?|facebook\w*|fb\w*)$/i; // tags of the other platform
   const tags = [...new Set(tagify(A.hashtags))].filter(t => !other.test(t)).slice(0, L.tags[1]);
@@ -21,16 +22,17 @@ export function buildKit(tl, p, platform, { aiVoice = true } = {}) {
   // first line = this video's own hook (differs per angle × hook): stronger opener, and lets aff_stats tell the videos apart
   const hookLine = String(A.hook?.say || '').trim();
   if (hookLine && !caption.toLowerCase().startsWith(hookLine.toLowerCase().slice(0, 20))) caption = `${hookLine}\n${caption}`;
-  const link = affLink(p, platform);
+  const link = trackedLink(affLink(p, platform), code); // mã theo dõi riêng từng video (sub_id)
   if (fb) caption = caption.replace(/bấm (vào )?giỏ hàng[^.!]*[.!]?/gi, '').trim() + (link ? '\n👇 Link mua ở bình luận đầu tiên' : '');
-  else caption = caption.replace(/link (mua )?(ở|trong) bình luận[^.!]*[.!]?/gi, '').trim() + '\n🛒 Bấm giỏ hàng để xem giá';
+  else { caption = caption.replace(/link (mua )?(ở|trong) bình luận[^.!]*[.!]?/gi, '').trim(); if (!/giỏ hàng/i.test(caption)) caption += '\n🛒 Bấm giỏ hàng để xem giá'; }
   if (A.disclaimer) caption += `\n${A.disclaimer}`;
-  caption = caption.slice(0, L.caption - tags.join(' ').length - 2);
+  const tail = code && trackSettings().caption_code ? ` [${code}]` : ''; // file xuất số liệu có cột mô tả → khớp đúng video
+  caption = caption.slice(0, L.caption - tags.join(' ').length - 2 - tail.length) + tail;
   const kit = {
-    platform, product: p.id, product_name: p.name, title: String(A.title || p.name).slice(0, 100), caption, hashtags: tags,
+    platform, product: p.id, product_name: p.name, code: code || null, title: String(A.title || p.name).slice(0, 100), caption, hashtags: tags,
     attach: fb ? null : { name: p.name, product_id: p.tiktok_product_id || '', link: p.links.tiktok || '', how: 'TikTok Studio / app: Thêm liên kết → Sản phẩm → tìm theo tên hoặc ID trong Showcase → chọn → đặt tên hiển thị ≤ 30 ký tự' },
     first_comment: fb && link ? `🛒 Link mua ${p.name}${p.price ? ` (đang ${fmtPrice(p.price)})` : ''}: ${link}` : '',
-    ai_label: aiVoice, // giọng đọc/hình do AI tạo → bật "Nội dung do AI tạo" (TikTok) / "Thông tin AI" (Facebook)
+    ai_label: aiVoice || /^clone:/.test(A.voice || ''), // giọng đọc/hình do AI tạo → bật "Nội dung do AI tạo" (TikTok) / "Thông tin AI" (Facebook)
     checklist: [
       fb ? 'Đăng lên Trang (Page) dạng Reels, dán caption' : 'Mở TikTok Studio → Tải lên video, dán caption',
       fb ? (link ? 'Đăng xong: bình luận đầu = link mua (đã chép sẵn), ghim bình luận' : 'Chưa có link affiliate Facebook/Shopee cho sản phẩm này — thêm trong thẻ sản phẩm') : `Gắn sản phẩm: ${p.name}${p.tiktok_product_id ? ` (ID ${p.tiktok_product_id})` : ''}`,

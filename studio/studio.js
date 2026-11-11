@@ -348,6 +348,7 @@ function inspTabs(c) {
 const KIND_IC = { clip: 'ti-movie', line: 'ti-letter-t', cap: 'ti-badge-cc', node: 'ti-hierarchy', badge: 'ti-badge', sfx: 'ti-bell', music: 'ti-music', scene: 'ti-sparkles' };
 function renderInspector() {
   const el = $('#insp');
+  if (!TL) { el.innerHTML = ''; return; } // no project open yet (affiliate home / faceless videos need none)
   if (!sel) { el.innerHTML = projectPanel(); return; }
   const c = sel, o = c.obj;
   const tag = { clip: 'Video', line: c.scene?.type === 'text' ? 'Chữ thêm' : 'Chữ graphic', cap: 'Phụ đề', node: 'Sơ đồ', badge: 'Huy hiệu', sfx: 'Âm thanh', music: 'Nhạc nền', scene: sceneName(o) }[c.kind] || c.tag || c.kind;

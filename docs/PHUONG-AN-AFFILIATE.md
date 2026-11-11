@@ -165,3 +165,27 @@ Thư mục tự động: thả **video/ảnh vào thư mục mang tên sản ph�
 | P3 clip quay + livestream | bước `aff` trong `autopilot.mjs`, `aff_overlay.mjs`, `aff_live.mjs` | clip 30 s → 1 video trong 3 phút (thẻ giá đúng lúc nói giá, giỏ hàng ở cuối). Livestream 2 phút → clip có gắn sản phẩm. Nhãn giỏ hàng thay thẻ kết cũ |
 | P4 đăng + lịch | `aff_kit.mjs`, `fb_page.mjs`, `publish.mjs` (gắn giỏ trong nhắc lịch, tự đăng Trang FB) | Facebook đã thử với máy chủ giả (start → upload → finish → comment), chưa thử với Trang thật |
 | P5 học từ đơn | `aff_stats.mjs`, rail **Hiệu quả** | file 8 dòng khớp đúng 8/8, học ra góc bán và hook thắng |
+
+## 8. Bản 2: tính năng sâu (11/11/2026)
+
+| # | Tính năng | File chính | Đã kiểm tra |
+|---|---|---|---|
+| 1 | Nhân bản video thắng | `autopilot_aff.mjs --clone`, `aff_script.hookVariants` | 1 video thắng → 2 biến thể (hook, nhạc, nhịp, hình mở đầu khác), sổ ghi `variant_of` |
+| 2 | Mã theo dõi từng video | `aff_track.mjs`, `aff_stats.importStats` | file 12 dòng khớp 12/12 chính xác theo mã |
+| 3 | Chấm điểm sản phẩm, Hôm nay làm gì | `aff_insights.mjs` | điểm, lý do, kế hoạch nhân bản + làm mới |
+| 4 | Đào review khách | `aff_reviews.mjs` | Claude đọc 5 đánh giá trong 16 s, có trích dẫn |
+| 5 | Giọng nhân bản | `aff_voice.mjs`, `voice_clone.py` | 2 câu trong 4,5 s; đọc sai "Serum" (cần thêm vào tu-doc.txt) |
+| 6 | Tách nền | `product_media.py cutout`, cảnh `aff_hero` | ảnh nền trắng → PNG, cảnh trên nền thương hiệu |
+| 7 | Cận cảnh chi tiết | `product_media.py details` | tìm đúng vùng nhãn, thêm 2 cảnh |
+| 8 | Kho b-roll của tôi | `aff_media.mjs` | cảnh "chỉ tay" chèn vào CTA, sổ ghi có người thật |
+| 9 | Chấm 3 giây đầu | `aff_qc.check3s`, bước `qc` | 98–100/100, tự kéo dài chữ hook |
+| 10 | Nhiều kênh, chặn trùng | `profile.mjs`, `publish.autoSchedule({channel})`, `dupOnOtherChannel` | khung giờ riêng từng kênh; trùng 100% bị chặn |
+| 11 | Lịch tự chạy | `aff_plan.mjs`, `queue.mjs` | chạy kế hoạch từ Trang chủ → hàng đợi |
+| 12 | Livestream nhiều sản phẩm | `aff_live.mjs --products` | nhận đúng sản phẩm theo lời nói (kiểm hàm, chưa thử video live thật) |
+| 13 | Trả lời bình luận | `aff_reply.mjs` | 5 loại bình luận, câu trả lời đúng giá, đã soát luật |
+| 14 | Học sâu + báo cáo tuần | `aff_insights.insights/weeklyReport` | kết luận kèm độ chắc chắn, báo cáo .md |
+| 15 | Kiểm hình/nhạc | `aff_qc.complianceLog` | nhật ký từng video, tên hãng khác, nhạc tự thêm |
+| — | Màn hình mở đầu | `studio/features/14_affiliate_home.js` | kiểm trong trình duyệt: số liệu, kế hoạch, kênh, menu video |
+
+Self-test engine: 628 khối, 0 lỗi (gói affiliate: 7).
+
